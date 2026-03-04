@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.opensubsonic.client.ui.screens.albums
 
 import androidx.compose.foundation.layout.*
@@ -208,7 +210,7 @@ fun AlbumDetailScreen(
                         }
                     }
 
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
+                    Divider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
                 }
             }
 

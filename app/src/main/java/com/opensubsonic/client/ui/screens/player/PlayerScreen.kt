@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.opensubsonic.client.ui.screens.player
 
 import androidx.compose.foundation.background
@@ -243,7 +245,7 @@ fun MiniPlayer(
                 playerState.position.toFloat() / playerState.duration.toFloat()
             } else 0f
             LinearProgressIndicator(
-                progress = { progress },
+                progress = progress,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),

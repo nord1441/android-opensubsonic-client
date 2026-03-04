@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.opensubsonic.client.ui.screens.playlists
 
 import androidx.compose.foundation.layout.*
@@ -239,7 +241,7 @@ fun PlaylistDetailScreen(
                         }
                     }
 
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
+                    Divider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline)
                 }
             }
 
