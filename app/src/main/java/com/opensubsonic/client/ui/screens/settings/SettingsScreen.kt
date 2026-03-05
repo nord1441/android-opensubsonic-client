@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION")
+
 package com.opensubsonic.client.ui.screens.settings
 
 import androidx.compose.foundation.clickable
@@ -12,12 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.opensubsonic.client.data.model.ServerConfig
+import com.opensubsonic.client.util.BulkDownloadState
 
 @Composable
 fun SettingsScreen(
     server: ServerConfig?,
+    bulkDownloadState: BulkDownloadState,
     onGenresClick: () -> Unit,
     onDownloadsClick: () -> Unit,
+    onDownloadAllAlbums: () -> Unit,
+    onScanDownloads: () -> Unit,
     onLogout: () -> Unit
 ) {
     LazyColumn(
@@ -80,6 +86,67 @@ fun SettingsScreen(
                 title = "DOWNLOADS",
                 subtitle = "Manage downloaded music",
                 onClick = onDownloadsClick
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        // Download all albums
+        item {
+            if (bulkDownloadState.isDownloading) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "DOWNLOADING ALL ALBUMS",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "${bulkDownloadState.completedAlbums} / ${bulkDownloadState.totalAlbums}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                        bulkDownloadState.currentAlbumName?.let {
+                            Text(
+                                text = it,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = if (bulkDownloadState.totalAlbums > 0) {
+                                bulkDownloadState.completedAlbums.toFloat() / bulkDownloadState.totalAlbums
+                            } else 0f,
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            } else {
+                SettingsItem(
+                    icon = Icons.Filled.CloudDownload,
+                    title = "DOWNLOAD ALL ALBUMS",
+                    subtitle = "Download entire library for offline use",
+                    onClick = onDownloadAllAlbums
+                )
+            }
+        }
+
+        // Scan existing downloads
+        item {
+            SettingsItem(
+                icon = Icons.Filled.FolderOpen,
+                title = "SCAN DOWNLOADS",
+                subtitle = "Re-link previously downloaded files",
+                onClick = onScanDownloads
             )
         }
 

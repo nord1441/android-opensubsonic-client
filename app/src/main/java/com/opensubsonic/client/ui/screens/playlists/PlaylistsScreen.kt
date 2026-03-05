@@ -136,18 +136,22 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 
     fun playAll() {
-        val songs = _uiState.value.songs
-        if (songs.isNotEmpty()) {
-            server?.let { playerController.setServer(it) }
-            playerController.playSongs(songs)
+        viewModelScope.launch {
+            val songs = _uiState.value.songs
+            if (songs.isNotEmpty()) {
+                server?.let { playerController.setServer(it) }
+                playerController.playSongs(songs)
+            }
         }
     }
 
     fun playSong(song: Song) {
-        val songs = _uiState.value.songs
-        val index = songs.indexOf(song).coerceAtLeast(0)
-        server?.let { playerController.setServer(it) }
-        playerController.playSongs(songs, index)
+        viewModelScope.launch {
+            val songs = _uiState.value.songs
+            val index = songs.indexOf(song).coerceAtLeast(0)
+            server?.let { playerController.setServer(it) }
+            playerController.playSongs(songs, index)
+        }
     }
 
     fun downloadAll() {

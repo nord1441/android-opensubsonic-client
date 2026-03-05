@@ -49,34 +49,38 @@ val SubTuneTypography = Typography(
     headlineLarge = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp
+        fontSize = 24.sp,
+        letterSpacing = 1.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp
+        fontSize = 20.sp,
+        letterSpacing = 0.5.sp
     ),
     headlineSmall = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp
+        fontSize = 18.sp,
+        letterSpacing = 0.5.sp
     ),
     titleLarge = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp
+        fontSize = 18.sp,
+        letterSpacing = 0.5.sp
     ),
     titleMedium = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 15.sp,
-        letterSpacing = 0.15.sp
+        letterSpacing = 0.5.sp
     ),
     titleSmall = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 13.sp,
-        letterSpacing = 0.1.sp
+        letterSpacing = 0.5.sp
     ),
     bodyLarge = TextStyle(
         fontFamily = DotoFontFamily,
@@ -88,30 +92,30 @@ val SubTuneTypography = Typography(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 13.sp,
-        letterSpacing = 0.25.sp
+        letterSpacing = 0.5.sp
     ),
     bodySmall = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
-        letterSpacing = 0.4.sp
+        letterSpacing = 0.5.sp
     ),
     labelLarge = TextStyle(
         fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 13.sp,
-        letterSpacing = 1.sp
+        letterSpacing = 1.5.sp
     ),
     labelMedium = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 1.sp
     ),
     labelSmall = TextStyle(
         fontFamily = DotoFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 10.sp,
-        letterSpacing = 0.5.sp
+        letterSpacing = 1.sp
     )
 )

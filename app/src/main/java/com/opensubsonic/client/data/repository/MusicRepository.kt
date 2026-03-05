@@ -95,6 +95,9 @@ class MusicRepository @Inject constructor(
         return client.getRandomSongs(size, genre)
     }
 
+    // Songs
+    suspend fun insertSongs(songs: List<Song>) = musicDao.insertSongs(songs)
+
     // Downloads
     fun getDownloadedSongs(): Flow<List<Song>> = musicDao.getDownloadedSongs()
 

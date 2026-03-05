@@ -1,10 +1,12 @@
 package com.opensubsonic.client.util
 
+import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.opensubsonic.client.api.SubsonicClient
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
 import com.opensubsonic.client.data.repository.MusicRepository
@@ -26,14 +28,37 @@ data class DownloadProgress(
     val error: String? = null
 )
 
+data class BulkDownloadState(
+    val isDownloading: Boolean = false,
+    val totalAlbums: Int = 0,
+    val completedAlbums: Int = 0,
+    val currentAlbumName: String? = null
+)
+
 @Singleton
 class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
-    private val musicRepository: MusicRepository
+    private val musicRepository: MusicRepository,
+    private val subsonicClient: SubsonicClient
 ) {
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
     val activeDownloads: StateFlow<Map<String, DownloadProgress>> = _activeDownloads
+
+    private val _bulkDownloadState = MutableStateFlow(BulkDownloadState())
+    val bulkDownloadState: StateFlow<BulkDownloadState> = _bulkDownloadState
+
+    companion object {
+        private const val SUBTUNE_DIR = "SubTune"
+
+        fun buildStableFileName(song: Song): String {
+            val suffix = song.suffix ?: "mp3"
+            val artist = (song.artist ?: "Unknown").replace(Regex("[/\\\\:*?\"<>|]"), "_")
+            val title = song.title.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+            // Prefix with song ID for re-mapping after reinstall
+            return "${song.id}__${artist} - ${title}.$suffix"
+        }
+    }
 
     suspend fun downloadSong(song: Song, server: ServerConfig) {
         withContext(Dispatchers.IO) {
@@ -50,15 +75,12 @@ class DownloadManager @Inject constructor(
                 }
 
                 val body = response.body ?: return@withContext
-                val contentLength = body.contentLength()
-                val suffix = song.suffix ?: "mp3"
-                val fileName = "${song.artist ?: "Unknown"} - ${song.title}.$suffix"
-                val sanitizedFileName = fileName.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+                val fileName = buildStableFileName(song)
 
                 val localPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveWithMediaStore(sanitizedFileName, song, body.bytes(), suffix)
+                    saveWithMediaStore(fileName, song, body.bytes())
                 } else {
-                    saveToFile(sanitizedFileName, body.bytes())
+                    saveToFile(fileName, body.bytes())
                 }
 
                 if (localPath != null) {
@@ -73,11 +95,126 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    private fun saveWithMediaStore(fileName: String, song: Song, data: ByteArray, suffix: String): String? {
+    suspend fun downloadAllAlbums(server: ServerConfig) {
+        withContext(Dispatchers.IO) {
+            try {
+                var offset = 0
+                val allAlbums = mutableListOf<com.opensubsonic.client.data.model.Album>()
+                while (true) {
+                    val batch = subsonicClient.getAlbumList(size = 500, offset = offset)
+                    if (batch.isEmpty()) break
+                    allAlbums.addAll(batch)
+                    offset += batch.size
+                    if (batch.size < 500) break
+                }
+
+                _bulkDownloadState.value = BulkDownloadState(
+                    isDownloading = true,
+                    totalAlbums = allAlbums.size,
+                    completedAlbums = 0
+                )
+
+                for ((index, album) in allAlbums.withIndex()) {
+                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                        completedAlbums = index,
+                        currentAlbumName = album.name
+                    )
+
+                    try {
+                        val (_, songs) = subsonicClient.getAlbum(album.id)
+                        musicRepository.insertSongs(songs)
+                        for (song in songs) {
+                            val dbSong = musicRepository.getSong(song.id)
+                            if (dbSong?.isDownloaded == true) continue
+                            downloadSong(song, server)
+                        }
+                    } catch (_: Exception) {
+                        // Skip failed albums
+                    }
+                }
+
+                _bulkDownloadState.value = BulkDownloadState(
+                    isDownloading = false,
+                    totalAlbums = allAlbums.size,
+                    completedAlbums = allAlbums.size
+                )
+            } catch (e: Exception) {
+                _bulkDownloadState.value = _bulkDownloadState.value.copy(isDownloading = false)
+            }
+        }
+    }
+
+    suspend fun scanAndRemapDownloads() {
+        withContext(Dispatchers.IO) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                scanMediaStore()
+            } else {
+                scanFileSystem()
+            }
+        }
+    }
+
+    private suspend fun scanMediaStore() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
+
+        val resolver = context.contentResolver
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.RELATIVE_PATH
+        )
+        val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
+        val selectionArgs = arrayOf("%$SUBTUNE_DIR%")
+
+        resolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )?.use { cursor ->
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+
+            while (cursor.moveToNext()) {
+                val mediaId = cursor.getLong(idCol)
+                val displayName = cursor.getString(nameCol) ?: continue
+
+                // Extract song ID from filename: {songId}__{artist} - {title}.{ext}
+                val songId = displayName.substringBefore("__", "")
+                if (songId.isNotEmpty()) {
+                    val uri = ContentUris.withAppendedId(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
+                    )
+                    musicRepository.markSongAsDownloaded(songId, uri.toString())
+                }
+            }
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private suspend fun scanFileSystem() {
+        val musicDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+            SUBTUNE_DIR
+        )
+        if (!musicDir.exists()) return
+
+        musicDir.listFiles()?.forEach { file ->
+            val songId = file.name.substringBefore("__", "")
+            if (songId.isNotEmpty()) {
+                musicRepository.markSongAsDownloaded(songId, file.absolutePath)
+            }
+        }
+    }
+
+    private fun saveWithMediaStore(fileName: String, song: Song, data: ByteArray): String? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+
         val contentValues = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
             put(MediaStore.Audio.Media.MIME_TYPE, song.contentType ?: "audio/mpeg")
-            put(MediaStore.Audio.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/SubTune")
+            put(MediaStore.Audio.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MUSIC}/$SUBTUNE_DIR")
             put(MediaStore.Audio.Media.TITLE, song.title)
             put(MediaStore.Audio.Media.ARTIST, song.artist ?: "Unknown")
             put(MediaStore.Audio.Media.ALBUM, song.album ?: "Unknown")
@@ -100,7 +237,10 @@ class DownloadManager @Inject constructor(
 
     @Suppress("DEPRECATION")
     private fun saveToFile(fileName: String, data: ByteArray): String? {
-        val musicDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), "SubTune")
+        val musicDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+            SUBTUNE_DIR
+        )
         if (!musicDir.exists()) musicDir.mkdirs()
         val file = File(musicDir, fileName)
         file.writeBytes(data)

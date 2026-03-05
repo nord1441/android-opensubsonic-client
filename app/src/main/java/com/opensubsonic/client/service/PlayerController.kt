@@ -11,6 +11,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.opensubsonic.client.data.db.MusicDao
 import com.opensubsonic.client.data.model.PlaybackMode
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
@@ -27,13 +28,15 @@ data class PlayerState(
     val position: Long = 0L,
     val duration: Long = 0L,
     val playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL,
+    val shuffleEnabled: Boolean = false,
     val queue: List<Song> = emptyList(),
     val currentIndex: Int = -1
 )
 
 @Singleton
 class PlayerController @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val musicDao: MusicDao
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -59,34 +62,32 @@ class PlayerController @Inject constructor(
         serverConfig = config
     }
 
-    fun playSongs(songs: List<Song>, startIndex: Int = 0) {
+    suspend fun playSongs(songs: List<Song>, startIndex: Int = 0) {
         val server = serverConfig ?: return
         val ctrl = controller ?: return
 
-        currentQueue = songs
-        val mediaItems = songs.map { song -> song.toMediaItem(server) }
+        // Resolve local paths from DB for downloaded songs
+        val resolvedSongs = songs.map { song ->
+            val dbSong = musicDao.getSong(song.id)
+            if (dbSong != null && dbSong.isDownloaded && dbSong.localPath != null) {
+                song.copy(isDownloaded = true, localPath = dbSong.localPath)
+            } else {
+                song
+            }
+        }
+
+        currentQueue = resolvedSongs
+        val mediaItems = resolvedSongs.map { song -> song.toMediaItem(server) }
 
         ctrl.setMediaItems(mediaItems, startIndex, 0)
         ctrl.prepare()
         ctrl.play()
 
         _playerState.value = _playerState.value.copy(
-            queue = songs,
+            queue = resolvedSongs,
             currentIndex = startIndex,
-            currentSong = songs.getOrNull(startIndex)
+            currentSong = resolvedSongs.getOrNull(startIndex)
         )
-    }
-
-    fun addToQueue(songs: List<Song>) {
-        val server = serverConfig ?: return
-        val ctrl = controller ?: return
-
-        currentQueue = currentQueue + songs
-        songs.forEach { song ->
-            ctrl.addMediaItem(song.toMediaItem(server))
-        }
-
-        _playerState.value = _playerState.value.copy(queue = currentQueue)
     }
 
     fun play() {
@@ -109,27 +110,30 @@ class PlayerController @Inject constructor(
         controller?.seekTo(position)
     }
 
-    fun setPlaybackMode(mode: PlaybackMode) {
+    fun setRepeatMode(mode: PlaybackMode) {
         val ctrl = controller ?: return
         when (mode) {
             PlaybackMode.SEQUENTIAL -> {
-                ctrl.shuffleModeEnabled = false
                 ctrl.repeatMode = Player.REPEAT_MODE_OFF
             }
-            PlaybackMode.SHUFFLE -> {
-                ctrl.shuffleModeEnabled = true
-                ctrl.repeatMode = Player.REPEAT_MODE_ALL
-            }
             PlaybackMode.REPEAT_ONE -> {
-                ctrl.shuffleModeEnabled = false
                 ctrl.repeatMode = Player.REPEAT_MODE_ONE
             }
             PlaybackMode.REPEAT_ALL -> {
-                ctrl.shuffleModeEnabled = false
                 ctrl.repeatMode = Player.REPEAT_MODE_ALL
+            }
+            else -> {
+                ctrl.repeatMode = Player.REPEAT_MODE_OFF
             }
         }
         _playerState.value = _playerState.value.copy(playbackMode = mode)
+    }
+
+    fun toggleShuffle() {
+        val ctrl = controller ?: return
+        val newShuffle = !ctrl.shuffleModeEnabled
+        ctrl.shuffleModeEnabled = newShuffle
+        _playerState.value = _playerState.value.copy(shuffleEnabled = newShuffle)
     }
 
     fun updatePosition() {

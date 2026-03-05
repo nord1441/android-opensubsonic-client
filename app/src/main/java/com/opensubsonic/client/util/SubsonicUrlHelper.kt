@@ -6,6 +6,22 @@ import java.util.UUID
 
 object SubsonicUrlHelper {
 
+    private var cachedSalt: String? = null
+    private var cachedToken: String? = null
+    private var cachedPassword: String? = null
+
+    private fun getAuth(server: ServerConfig): Pair<String, String> {
+        if (cachedPassword == server.password && cachedSalt != null && cachedToken != null) {
+            return cachedToken!! to cachedSalt!!
+        }
+        val salt = UUID.randomUUID().toString().replace("-", "").take(12)
+        val token = md5("${server.password}$salt")
+        cachedSalt = salt
+        cachedToken = token
+        cachedPassword = server.password
+        return token to salt
+    }
+
     fun getStreamUrl(server: ServerConfig, songId: String): String {
         return buildUrl(server, "rest/stream", mapOf("id" to songId))
     }
@@ -20,8 +36,7 @@ object SubsonicUrlHelper {
 
     private fun buildUrl(server: ServerConfig, path: String, params: Map<String, String>): String {
         val baseUrl = server.url.trimEnd('/')
-        val salt = UUID.randomUUID().toString().replace("-", "").take(12)
-        val token = md5("${server.password}$salt")
+        val (token, salt) = getAuth(server)
 
         val queryParams = buildString {
             append("u=${server.username}")

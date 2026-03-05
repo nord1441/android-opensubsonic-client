@@ -8,7 +8,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +39,7 @@ import com.opensubsonic.client.ui.screens.playlists.PlaylistDetailScreen
 import com.opensubsonic.client.ui.screens.playlists.PlaylistsScreen
 import com.opensubsonic.client.ui.screens.settings.SettingsScreen
 import com.opensubsonic.client.ui.theme.SubTuneTheme
+import com.opensubsonic.client.util.DownloadManager
 import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -51,6 +51,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var playerController: PlayerController
     @Inject lateinit var serverRepository: ServerRepository
     @Inject lateinit var serverConfigHolder: ServerConfigHolder
+    @Inject lateinit var downloadManager: DownloadManager
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -67,7 +68,8 @@ class MainActivity : ComponentActivity() {
                 SubTuneApp(
                     playerController = playerController,
                     serverRepository = serverRepository,
-                    serverConfigHolder = serverConfigHolder
+                    serverConfigHolder = serverConfigHolder,
+                    downloadManager = downloadManager
                 )
             }
         }
@@ -98,23 +100,27 @@ class MainActivity : ComponentActivity() {
 fun SubTuneApp(
     playerController: PlayerController,
     serverRepository: ServerRepository,
-    serverConfigHolder: ServerConfigHolder
+    serverConfigHolder: ServerConfigHolder,
+    downloadManager: DownloadManager
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val playerState by playerController.playerState.collectAsState()
+    val bulkDownloadState by downloadManager.bulkDownloadState.collectAsState()
     val scope = rememberCoroutineScope()
 
     var activeServer by remember { mutableStateOf<ServerConfig?>(null) }
 
-    // Load active server
+    // Load active server and scan for existing downloads
     LaunchedEffect(Unit) {
         activeServer = serverRepository.getActiveServer()
         activeServer?.let {
             serverConfigHolder.update(it.url, it.username, it.password)
             playerController.setServer(it)
         }
+        // Scan for previously downloaded files on startup
+        downloadManager.scanAndRemapDownloads()
     }
 
     val showBottomBar = currentRoute in listOf(
@@ -122,15 +128,11 @@ fun SubTuneApp(
         Screen.Playlists.route, Screen.Settings.route
     )
 
-    val isPlayerScreen = currentRoute == Screen.Player.route
-    val isLoginScreen = currentRoute == Screen.Login.route
-
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             if (showBottomBar) {
                 Column {
-                    // Mini player
                     val coverArtUrl = playerState.currentSong?.coverArt?.let {
                         activeServer?.let { s -> SubsonicUrlHelper.getCoverArtUrl(s, it) }
                     }
@@ -211,6 +213,7 @@ fun SubTuneApp(
                                 serverConfigHolder.update(it.url, it.username, it.password)
                                 playerController.setServer(it)
                             }
+                            downloadManager.scanAndRemapDownloads()
                         }
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Login.route) { inclusive = true }
@@ -297,8 +300,21 @@ fun SubTuneApp(
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     server = activeServer,
+                    bulkDownloadState = bulkDownloadState,
                     onGenresClick = { navController.navigate(Screen.Genres.route) },
                     onDownloadsClick = { /* TODO */ },
+                    onDownloadAllAlbums = {
+                        activeServer?.let { server ->
+                            scope.launch {
+                                downloadManager.downloadAllAlbums(server)
+                            }
+                        }
+                    },
+                    onScanDownloads = {
+                        scope.launch {
+                            downloadManager.scanAndRemapDownloads()
+                        }
+                    },
                     onLogout = {
                         scope.launch {
                             activeServer?.let { serverRepository.deleteServer(it) }

@@ -20,7 +20,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.opensubsonic.client.data.model.Album
-import com.opensubsonic.client.data.model.PlaybackMode
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
 import com.opensubsonic.client.data.repository.MusicRepository
@@ -73,27 +72,33 @@ class AlbumDetailViewModel @Inject constructor(
     }
 
     fun playAll() {
-        val songs = _uiState.value.songs
-        if (songs.isNotEmpty()) {
-            server?.let { playerController.setServer(it) }
-            playerController.playSongs(songs)
+        viewModelScope.launch {
+            val songs = _uiState.value.songs
+            if (songs.isNotEmpty()) {
+                server?.let { playerController.setServer(it) }
+                playerController.playSongs(songs)
+            }
         }
     }
 
     fun shufflePlay() {
-        val songs = _uiState.value.songs.shuffled()
-        if (songs.isNotEmpty()) {
-            server?.let { playerController.setServer(it) }
-            playerController.playSongs(songs)
-            playerController.setPlaybackMode(PlaybackMode.SHUFFLE)
+        viewModelScope.launch {
+            val songs = _uiState.value.songs
+            if (songs.isNotEmpty()) {
+                server?.let { playerController.setServer(it) }
+                playerController.playSongs(songs)
+                playerController.toggleShuffle()
+            }
         }
     }
 
     fun playSong(song: Song) {
-        val songs = _uiState.value.songs
-        val index = songs.indexOf(song).coerceAtLeast(0)
-        server?.let { playerController.setServer(it) }
-        playerController.playSongs(songs, index)
+        viewModelScope.launch {
+            val songs = _uiState.value.songs
+            val index = songs.indexOf(song).coerceAtLeast(0)
+            server?.let { playerController.setServer(it) }
+            playerController.playSongs(songs, index)
+        }
     }
 
     fun downloadAll() {
@@ -106,17 +111,12 @@ class AlbumDetailViewModel @Inject constructor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumDetailScreen(
     onBack: () -> Unit,
     viewModel: AlbumDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val playerState by viewModel.run {
-        // Access the player controller through the viewModel
-        MutableStateFlow(null)
-    }.collectAsState()
     val server = viewModel.server
 
     when {
@@ -128,7 +128,6 @@ fun AlbumDetailScreen(
         ) {
             item {
                 Column {
-                    // Top bar
                     IconButton(
                         onClick = onBack,
                         modifier = Modifier.padding(4.dp)
@@ -136,7 +135,6 @@ fun AlbumDetailScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
 
-                    // Album cover & info
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -178,7 +176,6 @@ fun AlbumDetailScreen(
                         }
                     }
 
-                    // Action buttons
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

@@ -28,12 +28,17 @@ fun PlayerScreen(
 ) {
     val playerState by playerController.playerState.collectAsState()
 
-    // Update position periodically
     LaunchedEffect(playerState.isPlaying) {
         while (playerState.isPlaying) {
             playerController.updatePosition()
             kotlinx.coroutines.delay(500)
         }
+    }
+
+    // Stabilize cover art URL per song to prevent flickering on recomposition
+    var stableCoverArt by remember { mutableStateOf(coverArtUrl) }
+    LaunchedEffect(playerState.currentSong?.id) {
+        stableCoverArt = coverArtUrl
     }
 
     Column(
@@ -66,7 +71,7 @@ fun PlayerScreen(
 
         // Cover art
         CoverArtImage(
-            url = coverArtUrl,
+            url = stableCoverArt,
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
@@ -136,27 +141,14 @@ fun PlayerScreen(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Playback mode
-            IconButton(onClick = {
-                val next = when (playerState.playbackMode) {
-                    PlaybackMode.SEQUENTIAL -> PlaybackMode.REPEAT_ALL
-                    PlaybackMode.REPEAT_ALL -> PlaybackMode.REPEAT_ONE
-                    PlaybackMode.REPEAT_ONE -> PlaybackMode.SHUFFLE
-                    PlaybackMode.SHUFFLE -> PlaybackMode.SEQUENTIAL
-                }
-                playerController.setPlaybackMode(next)
-            }) {
+            // Shuffle toggle
+            IconButton(onClick = { playerController.toggleShuffle() }) {
                 Icon(
-                    when (playerState.playbackMode) {
-                        PlaybackMode.SEQUENTIAL -> Icons.Filled.ArrowForward
-                        PlaybackMode.REPEAT_ALL -> Icons.Filled.Repeat
-                        PlaybackMode.REPEAT_ONE -> Icons.Filled.RepeatOne
-                        PlaybackMode.SHUFFLE -> Icons.Filled.Shuffle
-                    },
-                    contentDescription = "Playback mode",
-                    tint = if (playerState.playbackMode != PlaybackMode.SEQUENTIAL)
+                    Icons.Filled.Shuffle,
+                    contentDescription = "Shuffle",
+                    tint = if (playerState.shuffleEnabled)
                         MaterialTheme.colorScheme.secondary
-                    else MaterialTheme.colorScheme.onSurface
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
@@ -197,19 +189,33 @@ fun PlayerScreen(
                 )
             }
 
-            // Queue indicator
-            IconButton(onClick = { /* queue view toggle */ }) {
+            // Repeat mode cycle
+            IconButton(onClick = {
+                val next = when (playerState.playbackMode) {
+                    PlaybackMode.SEQUENTIAL -> PlaybackMode.REPEAT_ALL
+                    PlaybackMode.REPEAT_ALL -> PlaybackMode.REPEAT_ONE
+                    PlaybackMode.REPEAT_ONE -> PlaybackMode.SEQUENTIAL
+                    PlaybackMode.SHUFFLE -> PlaybackMode.SEQUENTIAL
+                }
+                playerController.setRepeatMode(next)
+            }) {
                 Icon(
-                    Icons.Filled.QueueMusic,
-                    contentDescription = "Queue",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    when (playerState.playbackMode) {
+                        PlaybackMode.REPEAT_ONE -> Icons.Filled.RepeatOne
+                        PlaybackMode.REPEAT_ALL -> Icons.Filled.Repeat
+                        else -> Icons.Filled.Repeat
+                    },
+                    contentDescription = "Repeat mode",
+                    tint = if (playerState.playbackMode != PlaybackMode.SEQUENTIAL)
+                        MaterialTheme.colorScheme.secondary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Queue info
+        // Track position
         if (playerState.queue.isNotEmpty()) {
             Text(
                 text = "${playerState.currentIndex + 1} / ${playerState.queue.size}",
@@ -232,6 +238,12 @@ fun MiniPlayer(
 ) {
     if (playerState.currentSong == null) return
 
+    // Stabilize cover art URL per song to prevent flickering
+    var stableCoverArt by remember { mutableStateOf(coverArtUrl) }
+    LaunchedEffect(playerState.currentSong.id) {
+        stableCoverArt = coverArtUrl
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -240,7 +252,6 @@ fun MiniPlayer(
         tonalElevation = 2.dp
     ) {
         Column {
-            // Progress line
             val progress = if (playerState.duration > 0) {
                 playerState.position.toFloat() / playerState.duration.toFloat()
             } else 0f
@@ -260,7 +271,7 @@ fun MiniPlayer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CoverArtImage(
-                    url = coverArtUrl,
+                    url = stableCoverArt,
                     modifier = Modifier.size(40.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
