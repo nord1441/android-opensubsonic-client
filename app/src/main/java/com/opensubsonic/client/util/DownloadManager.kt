@@ -85,9 +85,9 @@ class DownloadManager @Inject constructor(
                 val fileName = buildStableFileName(song)
 
                 val localPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveWithMediaStore(fileName, song, body.bytes())
+                    saveWithMediaStore(fileName, song, body.byteStream())
                 } else {
-                    saveToFile(fileName, body.bytes())
+                    saveToFile(fileName, body.byteStream())
                 }
 
                 if (localPath != null) {
@@ -115,14 +115,37 @@ class DownloadManager @Inject constructor(
                     if (batch.size < 500) break
                 }
 
-                // Collect all tracks to get total count
-                val allTracks = mutableListOf<Pair<String, Song>>() // albumName to song
+                val totalTracks = allAlbums.sumOf { it.songCount }
+
+                _bulkDownloadState.value = BulkDownloadState(
+                    isDownloading = true,
+                    totalTracks = totalTracks,
+                    completedTracks = 0
+                )
+
+                var completed = 0
                 for (album in allAlbums) {
                     try {
                         val (_, songs) = subsonicClient.getAlbum(album.id)
                         musicRepository.insertSongs(songs)
+
                         for (song in songs) {
-                            allTracks.add(album.name to song)
+                            _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                                completedTracks = completed,
+                                currentTrackName = song.title,
+                                currentAlbumName = album.name
+                            )
+
+                            // Skip if file already exists on disk for this song ID
+                            if (isSongFileExists(song.id)) {
+                                completed++
+                                continue
+                            }
+
+                            downloadSong(song, server)
+                            // Clean up completed/errored entries to prevent map growth
+                            _activeDownloads.value = _activeDownloads.value - song.id
+                            completed++
                         }
                     } catch (_: Exception) {
                         // Skip failed albums
@@ -130,33 +153,9 @@ class DownloadManager @Inject constructor(
                 }
 
                 _bulkDownloadState.value = BulkDownloadState(
-                    isDownloading = true,
-                    totalTracks = allTracks.size,
-                    completedTracks = 0
-                )
-
-                var completed = 0
-                for ((albumName, song) in allTracks) {
-                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                        completedTracks = completed,
-                        currentTrackName = song.title,
-                        currentAlbumName = albumName
-                    )
-
-                    // Skip if file already exists on disk for this song ID
-                    if (isSongFileExists(song.id)) {
-                        completed++
-                        continue
-                    }
-
-                    downloadSong(song, server)
-                    completed++
-                }
-
-                _bulkDownloadState.value = BulkDownloadState(
                     isDownloading = false,
-                    totalTracks = allTracks.size,
-                    completedTracks = allTracks.size
+                    totalTracks = completed,
+                    completedTracks = completed
                 )
             } catch (e: Exception) {
                 _bulkDownloadState.value = _bulkDownloadState.value.copy(isDownloading = false)
@@ -274,7 +273,7 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    private fun saveWithMediaStore(fileName: String, song: Song, data: ByteArray): String? {
+    private fun saveWithMediaStore(fileName: String, song: Song, inputStream: java.io.InputStream): String? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
 
         val contentValues = ContentValues().apply {
@@ -292,7 +291,11 @@ class DownloadManager @Inject constructor(
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, contentValues) ?: return null
 
-        resolver.openOutputStream(uri)?.use { it.write(data) }
+        inputStream.use { input ->
+            resolver.openOutputStream(uri)?.use { output ->
+                input.copyTo(output)
+            }
+        }
 
         contentValues.clear()
         contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
@@ -302,14 +305,18 @@ class DownloadManager @Inject constructor(
     }
 
     @Suppress("DEPRECATION")
-    private fun saveToFile(fileName: String, data: ByteArray): String? {
+    private fun saveToFile(fileName: String, inputStream: java.io.InputStream): String? {
         val musicDir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
             SUBTUNE_DIR
         )
         if (!musicDir.exists()) musicDir.mkdirs()
         val file = File(musicDir, fileName)
-        file.writeBytes(data)
+        inputStream.use { input ->
+            file.outputStream().use { output ->
+                input.copyTo(output)
+            }
+        }
         return file.absolutePath
     }
 
