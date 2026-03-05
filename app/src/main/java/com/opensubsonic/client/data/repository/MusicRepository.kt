@@ -34,6 +34,8 @@ class MusicRepository @Inject constructor(
 
     fun getSongsByAlbum(albumId: String): Flow<List<Song>> = musicDao.getSongsByAlbum(albumId)
 
+    suspend fun getSongsByAlbumDirect(albumId: String): List<Song> = musicDao.getSongsByAlbumDirect(albumId)
+
     // Artists
     fun getArtistsFlow(): Flow<List<Artist>> = musicDao.getAllArtists()
 
