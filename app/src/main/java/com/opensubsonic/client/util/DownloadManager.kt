@@ -64,6 +64,12 @@ class DownloadManager @Inject constructor(
     suspend fun downloadSong(song: Song, server: ServerConfig) {
         withContext(Dispatchers.IO) {
             try {
+                // Skip if file already exists on disk for this song ID
+                if (isSongFileExists(song.id)) {
+                    _activeDownloads.value = _activeDownloads.value + (song.id to DownloadProgress(song.id, 1f, isComplete = true))
+                    return@withContext
+                }
+
                 _activeDownloads.value = _activeDownloads.value + (song.id to DownloadProgress(song.id, 0f))
 
                 val url = SubsonicUrlHelper.getDownloadUrl(server, song.id)
@@ -137,9 +143,8 @@ class DownloadManager @Inject constructor(
                         currentAlbumName = albumName
                     )
 
-                    // Skip if already downloaded and file exists
-                    val dbSong = musicRepository.getSong(song.id)
-                    if (dbSong?.isDownloaded == true && dbSong.localPath != null && isFileAccessible(dbSong.localPath)) {
+                    // Skip if file already exists on disk for this song ID
+                    if (isSongFileExists(song.id)) {
                         completed++
                         continue
                     }
@@ -157,6 +162,39 @@ class DownloadManager @Inject constructor(
                 _bulkDownloadState.value = _bulkDownloadState.value.copy(isDownloading = false)
             }
         }
+    }
+
+    private fun isSongFileExists(songId: String): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            isSongFileExistsMediaStore(songId)
+        } else {
+            isSongFileExistsFileSystem(songId)
+        }
+    }
+
+    private fun isSongFileExistsMediaStore(songId: String): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+        val resolver = context.contentResolver
+        val projection = arrayOf(MediaStore.Audio.Media._ID)
+        val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ?"
+        val selectionArgs = arrayOf("%$SUBTUNE_DIR%", "${songId}__%")
+        resolver.query(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            projection, selection, selectionArgs, null
+        )?.use { cursor ->
+            return cursor.moveToFirst()
+        }
+        return false
+    }
+
+    @Suppress("DEPRECATION")
+    private fun isSongFileExistsFileSystem(songId: String): Boolean {
+        val musicDir = File(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+            SUBTUNE_DIR
+        )
+        if (!musicDir.exists()) return false
+        return musicDir.listFiles()?.any { it.name.startsWith("${songId}__") } == true
     }
 
     private fun isFileAccessible(path: String): Boolean {
