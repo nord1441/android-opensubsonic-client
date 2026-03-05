@@ -99,7 +99,6 @@ class DownloadManager @Inject constructor(
     suspend fun downloadAllAlbums(server: ServerConfig) {
         withContext(Dispatchers.IO) {
             try {
-                // Phase 1: Fetch album list only (lightweight)
                 var offset = 0
                 val allAlbums = mutableListOf<com.opensubsonic.client.data.model.Album>()
                 while (true) {
@@ -110,72 +109,49 @@ class DownloadManager @Inject constructor(
                     if (batch.size < 500) break
                 }
 
-                // Estimate total tracks from album songCount metadata
-                val estimatedTotal = allAlbums.sumOf { if (it.songCount > 0) it.songCount else 10 }
-
-                _bulkDownloadState.value = BulkDownloadState(
-                    isDownloading = true,
-                    totalTracks = estimatedTotal,
-                    completedTracks = 0
-                )
-
-                // Phase 2: Process albums one by one, skipping fully-downloaded ones
-                var completed = 0
+                // Collect all tracks to get total count
+                val allTracks = mutableListOf<Pair<String, Song>>() // albumName to song
                 for (album in allAlbums) {
-                    // Check if all songs in this album are already downloaded in DB
-                    // by fetching cached songs first (no network call)
-                    val cachedSongs = musicRepository.getSongsByAlbumDirect(album.id)
-                    val albumSongCount = album.songCount
-
-                    if (cachedSongs.size == albumSongCount && albumSongCount > 0 &&
-                        cachedSongs.all { it.isDownloaded && it.localPath != null && isFileAccessible(it.localPath!!) }
-                    ) {
-                        // All tracks already downloaded, skip this album entirely
-                        completed += cachedSongs.size
-                        _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                            completedTracks = completed
-                        )
-                        continue
-                    }
-
-                    // Need to fetch album details from server
                     try {
                         val (_, songs) = subsonicClient.getAlbum(album.id)
                         musicRepository.insertSongs(songs)
-
-                        // Update total with actual count on first real fetch
-                        val actualTotal = _bulkDownloadState.value.totalTracks -
-                            (if (album.songCount > 0) album.songCount else 10) + songs.size
-                        _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                            totalTracks = actualTotal
-                        )
-
                         for (song in songs) {
-                            _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                                completedTracks = completed,
-                                currentTrackName = song.title,
-                                currentAlbumName = album.name
-                            )
-
-                            val dbSong = musicRepository.getSong(song.id)
-                            if (dbSong?.isDownloaded == true && dbSong.localPath != null && isFileAccessible(dbSong.localPath)) {
-                                completed++
-                                continue
-                            }
-
-                            downloadSong(song, server)
-                            completed++
+                            allTracks.add(album.name to song)
                         }
                     } catch (_: Exception) {
-                        // Skip failed albums, advance estimate
-                        completed += album.songCount
+                        // Skip failed albums
                     }
                 }
 
                 _bulkDownloadState.value = BulkDownloadState(
+                    isDownloading = true,
+                    totalTracks = allTracks.size,
+                    completedTracks = 0
+                )
+
+                var completed = 0
+                for ((albumName, song) in allTracks) {
+                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                        completedTracks = completed,
+                        currentTrackName = song.title,
+                        currentAlbumName = albumName
+                    )
+
+                    // Skip if already downloaded and file exists
+                    val dbSong = musicRepository.getSong(song.id)
+                    if (dbSong?.isDownloaded == true && dbSong.localPath != null && isFileAccessible(dbSong.localPath)) {
+                        completed++
+                        continue
+                    }
+
+                    downloadSong(song, server)
+                    completed++
+                }
+
+                _bulkDownloadState.value = BulkDownloadState(
                     isDownloading = false,
-                    totalTracks = completed,
-                    completedTracks = completed
+                    totalTracks = allTracks.size,
+                    completedTracks = allTracks.size
                 )
             } catch (e: Exception) {
                 _bulkDownloadState.value = _bulkDownloadState.value.copy(isDownloading = false)

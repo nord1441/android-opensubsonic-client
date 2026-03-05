@@ -39,9 +39,6 @@ interface MusicDao {
     @Query("SELECT * FROM songs WHERE albumId = :albumId ORDER BY discNumber, track")
     fun getSongsByAlbum(albumId: String): Flow<List<Song>>
 
-    @Query("SELECT * FROM songs WHERE albumId = :albumId ORDER BY discNumber, track")
-    suspend fun getSongsByAlbumDirect(albumId: String): List<Song>
-
     @Query("SELECT * FROM songs WHERE id = :id")
     suspend fun getSong(id: String): Song?
 
