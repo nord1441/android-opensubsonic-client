@@ -30,8 +30,9 @@ data class DownloadProgress(
 
 data class BulkDownloadState(
     val isDownloading: Boolean = false,
-    val totalAlbums: Int = 0,
-    val completedAlbums: Int = 0,
+    val totalTracks: Int = 0,
+    val completedTracks: Int = 0,
+    val currentTrackName: String? = null,
     val currentAlbumName: String? = null
 )
 
@@ -108,25 +109,14 @@ class DownloadManager @Inject constructor(
                     if (batch.size < 500) break
                 }
 
-                _bulkDownloadState.value = BulkDownloadState(
-                    isDownloading = true,
-                    totalAlbums = allAlbums.size,
-                    completedAlbums = 0
-                )
-
-                for ((index, album) in allAlbums.withIndex()) {
-                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                        completedAlbums = index,
-                        currentAlbumName = album.name
-                    )
-
+                // Collect all tracks first to get total count
+                val allTracks = mutableListOf<Pair<String, Song>>() // albumName to song
+                for (album in allAlbums) {
                     try {
                         val (_, songs) = subsonicClient.getAlbum(album.id)
                         musicRepository.insertSongs(songs)
                         for (song in songs) {
-                            val dbSong = musicRepository.getSong(song.id)
-                            if (dbSong?.isDownloaded == true) continue
-                            downloadSong(song, server)
+                            allTracks.add(album.name to song)
                         }
                     } catch (_: Exception) {
                         // Skip failed albums
@@ -134,13 +124,51 @@ class DownloadManager @Inject constructor(
                 }
 
                 _bulkDownloadState.value = BulkDownloadState(
+                    isDownloading = true,
+                    totalTracks = allTracks.size,
+                    completedTracks = 0
+                )
+
+                var completed = 0
+                for ((albumName, song) in allTracks) {
+                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                        completedTracks = completed,
+                        currentTrackName = song.title,
+                        currentAlbumName = albumName
+                    )
+
+                    // Skip if already downloaded and file exists
+                    val dbSong = musicRepository.getSong(song.id)
+                    if (dbSong?.isDownloaded == true && dbSong.localPath != null && isFileAccessible(dbSong.localPath)) {
+                        completed++
+                        continue
+                    }
+
+                    downloadSong(song, server)
+                    completed++
+                }
+
+                _bulkDownloadState.value = BulkDownloadState(
                     isDownloading = false,
-                    totalAlbums = allAlbums.size,
-                    completedAlbums = allAlbums.size
+                    totalTracks = allTracks.size,
+                    completedTracks = allTracks.size
                 )
             } catch (e: Exception) {
                 _bulkDownloadState.value = _bulkDownloadState.value.copy(isDownloading = false)
             }
+        }
+    }
+
+    private fun isFileAccessible(path: String): Boolean {
+        return try {
+            if (path.startsWith("content://")) {
+                context.contentResolver.openInputStream(android.net.Uri.parse(path))?.close()
+                true
+            } else {
+                File(path).exists()
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 

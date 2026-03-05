@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.opensubsonic.client.data.model.ServerConfig
+import com.opensubsonic.client.data.repository.MusicRepository
 import com.opensubsonic.client.data.repository.ServerRepository
 import com.opensubsonic.client.di.ServerConfigHolder
 import com.opensubsonic.client.service.PlayerController
@@ -37,6 +38,7 @@ import com.opensubsonic.client.ui.screens.player.MiniPlayer
 import com.opensubsonic.client.ui.screens.player.PlayerScreen
 import com.opensubsonic.client.ui.screens.playlists.PlaylistDetailScreen
 import com.opensubsonic.client.ui.screens.playlists.PlaylistsScreen
+import com.opensubsonic.client.ui.screens.settings.DownloadsScreen
 import com.opensubsonic.client.ui.screens.settings.SettingsScreen
 import com.opensubsonic.client.ui.theme.SubTuneTheme
 import com.opensubsonic.client.util.DownloadManager
@@ -52,6 +54,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var serverRepository: ServerRepository
     @Inject lateinit var serverConfigHolder: ServerConfigHolder
     @Inject lateinit var downloadManager: DownloadManager
+    @Inject lateinit var musicRepository: MusicRepository
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -69,7 +72,8 @@ class MainActivity : ComponentActivity() {
                     playerController = playerController,
                     serverRepository = serverRepository,
                     serverConfigHolder = serverConfigHolder,
-                    downloadManager = downloadManager
+                    downloadManager = downloadManager,
+                    musicRepository = musicRepository
                 )
             }
         }
@@ -101,7 +105,8 @@ fun SubTuneApp(
     playerController: PlayerController,
     serverRepository: ServerRepository,
     serverConfigHolder: ServerConfigHolder,
-    downloadManager: DownloadManager
+    downloadManager: DownloadManager,
+    musicRepository: MusicRepository
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -302,7 +307,7 @@ fun SubTuneApp(
                     server = activeServer,
                     bulkDownloadState = bulkDownloadState,
                     onGenresClick = { navController.navigate(Screen.Genres.route) },
-                    onDownloadsClick = { /* TODO */ },
+                    onDownloadsClick = { navController.navigate(Screen.Downloads.route) },
                     onDownloadAllAlbums = {
                         activeServer?.let { server ->
                             scope.launch {
@@ -323,6 +328,19 @@ fun SubTuneApp(
                         navController.navigate(Screen.Login.route) {
                             popUpTo(0) { inclusive = true }
                         }
+                    }
+                )
+            }
+
+            composable(Screen.Downloads.route) {
+                DownloadsScreen(
+                    musicRepository = musicRepository,
+                    onBack = { navController.popBackStack() },
+                    onSongClick = { song ->
+                        scope.launch {
+                            playerController.playSongs(listOf(song), 0)
+                        }
+                        navController.navigate(Screen.Player.route)
                     }
                 )
             }

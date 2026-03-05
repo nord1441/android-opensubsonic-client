@@ -109,21 +109,28 @@ fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "${bulkDownloadState.completedAlbums} / ${bulkDownloadState.totalAlbums}",
+                            text = "${bulkDownloadState.completedTracks} / ${bulkDownloadState.totalTracks} TRACKS",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
-                        bulkDownloadState.currentAlbumName?.let {
+                        bulkDownloadState.currentTrackName?.let { trackName ->
                             Text(
-                                text = it,
+                                text = trackName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                        bulkDownloadState.currentAlbumName?.let { albumName ->
+                            Text(
+                                text = albumName,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = if (bulkDownloadState.totalAlbums > 0) {
-                                bulkDownloadState.completedAlbums.toFloat() / bulkDownloadState.totalAlbums
+                            progress = if (bulkDownloadState.totalTracks > 0) {
+                                bulkDownloadState.completedTracks.toFloat() / bulkDownloadState.totalTracks
                             } else 0f,
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.secondary
