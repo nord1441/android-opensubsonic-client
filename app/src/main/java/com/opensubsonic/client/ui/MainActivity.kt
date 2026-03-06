@@ -41,6 +41,7 @@ import com.opensubsonic.client.ui.screens.playlists.PlaylistsScreen
 import com.opensubsonic.client.ui.screens.settings.DownloadsScreen
 import com.opensubsonic.client.ui.screens.settings.SettingsScreen
 import com.opensubsonic.client.ui.theme.SubTuneTheme
+import com.opensubsonic.client.service.DownloadService
 import com.opensubsonic.client.util.DownloadManager
 import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.AndroidEntryPoint
@@ -310,9 +311,7 @@ fun SubTuneApp(
                     onDownloadsClick = { navController.navigate(Screen.Downloads.route) },
                     onDownloadAllAlbums = {
                         activeServer?.let { server ->
-                            scope.launch {
-                                downloadManager.downloadAllAlbums(server)
-                            }
+                            DownloadService.start(navController.context, server)
                         }
                     },
                     onScanDownloads = {

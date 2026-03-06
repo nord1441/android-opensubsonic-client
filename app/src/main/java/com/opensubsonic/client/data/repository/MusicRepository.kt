@@ -106,4 +106,12 @@ class MusicRepository @Inject constructor(
     }
 
     suspend fun getSong(id: String): Song? = musicDao.getSong(id)
+
+    suspend fun getCachedAlbum(id: String): Album? = musicDao.getAlbum(id)
+
+    suspend fun getCachedArtist(id: String): Artist? = musicDao.getArtist(id)
+
+    suspend fun getCachedAlbumsByArtist(artistId: String): List<Album> = musicDao.getAlbumsByArtist(artistId)
+
+    suspend fun getCachedAlbumsByGenre(genre: String): List<Album> = musicDao.getAlbumsByGenre(genre)
 }

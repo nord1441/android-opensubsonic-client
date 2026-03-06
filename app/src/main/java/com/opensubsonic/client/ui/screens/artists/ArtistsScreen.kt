@@ -19,6 +19,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -46,7 +47,13 @@ class ArtistsViewModel @Inject constructor(
             try {
                 server = serverRepository.getActiveServer()
                 _artists.value = musicRepository.refreshArtists()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // Offline: load from local DB
+                if (_artists.value.isEmpty()) {
+                    server = serverRepository.getActiveServer()
+                    _artists.value = musicRepository.getArtistsFlow().first()
+                }
+            }
             _isLoading.value = false
         }
     }

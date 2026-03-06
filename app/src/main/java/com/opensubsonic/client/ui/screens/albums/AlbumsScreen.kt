@@ -20,6 +20,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -51,7 +52,13 @@ class AlbumsViewModel @Inject constructor(
                 val albums = musicRepository.refreshAlbums(offset = offset)
                 _albums.value = _albums.value + albums
                 offset += albums.size
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // Offline: load from local DB on first load
+                if (_albums.value.isEmpty()) {
+                    server = serverRepository.getActiveServer()
+                    _albums.value = musicRepository.getAlbumsFlow().first()
+                }
+            }
             _isLoading.value = false
         }
     }

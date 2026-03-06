@@ -31,6 +31,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -65,8 +66,12 @@ class AlbumDetailViewModel @Inject constructor(
                 server = serverRepository.getActiveServer()
                 val (album, songs) = musicRepository.getAlbumDetail(albumId)
                 _uiState.value = AlbumDetailState(album = album, songs = songs, isLoading = false)
-            } catch (e: Exception) {
-                _uiState.value = AlbumDetailState(isLoading = false, error = e.message)
+            } catch (_: Exception) {
+                // Offline: load from local DB
+                server = serverRepository.getActiveServer()
+                val album = musicRepository.getCachedAlbum(albumId)
+                val songs = musicRepository.getSongsByAlbum(albumId).first()
+                _uiState.value = AlbumDetailState(album = album, songs = songs, isLoading = false)
             }
         }
     }

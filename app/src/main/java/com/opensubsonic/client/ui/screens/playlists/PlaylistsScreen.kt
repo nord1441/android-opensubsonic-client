@@ -30,6 +30,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -57,7 +58,13 @@ class PlaylistsViewModel @Inject constructor(
             try {
                 server = serverRepository.getActiveServer()
                 _playlists.value = musicRepository.refreshPlaylists()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                // Offline: load from local DB
+                if (_playlists.value.isEmpty()) {
+                    server = serverRepository.getActiveServer()
+                    _playlists.value = musicRepository.getPlaylistsFlow().first()
+                }
+            }
             _isLoading.value = false
         }
     }
@@ -130,7 +137,10 @@ class PlaylistDetailViewModel @Inject constructor(
                 val (playlist, songs) = musicRepository.getPlaylistDetail(playlistId)
                 _uiState.value = PlaylistDetailState(playlist = playlist, songs = songs, isLoading = false)
             } catch (_: Exception) {
-                _uiState.value = PlaylistDetailState(isLoading = false)
+                // Offline: load from local DB
+                server = serverRepository.getActiveServer()
+                val songs = musicRepository.getPlaylistSongs(playlistId).first()
+                _uiState.value = PlaylistDetailState(songs = songs, isLoading = false)
             }
         }
     }

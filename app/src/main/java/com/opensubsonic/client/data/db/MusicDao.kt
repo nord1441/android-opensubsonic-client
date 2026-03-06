@@ -16,6 +16,12 @@ interface MusicDao {
     @Query("SELECT * FROM albums WHERE id = :id")
     suspend fun getAlbum(id: String): Album?
 
+    @Query("SELECT * FROM albums WHERE artistId = :artistId ORDER BY year DESC, name ASC")
+    suspend fun getAlbumsByArtist(artistId: String): List<Album>
+
+    @Query("SELECT * FROM albums WHERE genre = :genre ORDER BY name ASC")
+    suspend fun getAlbumsByGenre(genre: String): List<Album>
+
     @Query("DELETE FROM albums")
     suspend fun deleteAllAlbums()
 

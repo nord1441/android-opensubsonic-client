@@ -28,6 +28,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -45,7 +46,9 @@ class GenresViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 _genres.value = musicRepository.refreshGenres()
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                _genres.value = musicRepository.getGenresFlow().first()
+            }
             _isLoading.value = false
         }
     }
@@ -125,7 +128,10 @@ class GenreDetailViewModel @Inject constructor(
                 val albums = musicRepository.getAlbumsByGenre(genreName)
                 _uiState.value = GenreDetailState(genreName = genreName, albums = albums, isLoading = false)
             } catch (_: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                // Offline: load from local DB
+                server = serverRepository.getActiveServer()
+                val albums = musicRepository.getCachedAlbumsByGenre(genreName)
+                _uiState.value = GenreDetailState(genreName = genreName, albums = albums, isLoading = false)
             }
         }
     }

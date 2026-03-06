@@ -53,7 +53,11 @@ class ArtistDetailViewModel @Inject constructor(
                 val (artist, albums) = musicRepository.getArtistDetail(artistId)
                 _uiState.value = ArtistDetailState(artist = artist, albums = albums, isLoading = false)
             } catch (_: Exception) {
-                _uiState.value = ArtistDetailState(isLoading = false)
+                // Offline: load from local DB
+                server = serverRepository.getActiveServer()
+                val artist = musicRepository.getCachedArtist(artistId)
+                val albums = musicRepository.getCachedAlbumsByArtist(artistId)
+                _uiState.value = ArtistDetailState(artist = artist, albums = albums, isLoading = false)
             }
         }
     }

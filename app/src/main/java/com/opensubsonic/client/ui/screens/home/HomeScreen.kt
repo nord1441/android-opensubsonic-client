@@ -22,6 +22,7 @@ import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -59,8 +60,16 @@ class HomeViewModel @Inject constructor(
                     randomSongs = random,
                     isLoading = false
                 )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(isLoading = false, error = e.message)
+            } catch (_: Exception) {
+                // Offline: show cached albums and downloaded songs
+                server = serverRepository.getActiveServer()
+                val cachedAlbums = musicRepository.getAlbumsFlow().first().take(20)
+                val downloadedSongs = musicRepository.getDownloadedSongs().first().take(30)
+                _uiState.value = HomeUiState(
+                    recentAlbums = cachedAlbums,
+                    randomSongs = downloadedSongs,
+                    isLoading = false
+                )
             }
         }
     }
