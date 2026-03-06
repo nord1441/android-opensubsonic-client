@@ -2,7 +2,6 @@ package com.opensubsonic.client.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
@@ -16,106 +15,104 @@ val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-val DotoFont = GoogleFont("Doto")
+val JetBrainsMonoFont = GoogleFont("JetBrains Mono")
 
-val DotoFontFamily = FontFamily(
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.Light),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.Bold),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.ExtraBold),
-    Font(googleFont = DotoFont, fontProvider = provider, weight = FontWeight.Black),
+val TerminalFontFamily = FontFamily(
+    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Light),
+    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Bold),
 )
 
 val SubTuneTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Black,
-        fontSize = 40.sp,
-        letterSpacing = (-1).sp
-    ),
-    displayMedium = TextStyle(
-        fontFamily = DotoFontFamily,
+        fontFamily = TerminalFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
+        fontSize = 34.sp,
         letterSpacing = (-0.5).sp
     ),
-    displaySmall = TextStyle(
-        fontFamily = DotoFontFamily,
+    displayMedium = TextStyle(
+        fontFamily = TerminalFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 28.sp
+        fontSize = 28.sp,
+        letterSpacing = 0.sp
+    ),
+    displaySmall = TextStyle(
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 24.sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        letterSpacing = 1.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 22.sp,
+        letterSpacing = 0.sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        letterSpacing = 0.5.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 18.sp,
+        letterSpacing = 0.sp
     ),
     headlineSmall = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        letterSpacing = 0.5.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        letterSpacing = 0.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 18.sp,
-        letterSpacing = 0.5.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 16.sp,
+        letterSpacing = 0.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 15.sp,
-        letterSpacing = 0.5.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 14.sp,
+        letterSpacing = 0.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 13.sp,
-        letterSpacing = 0.5.sp
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        letterSpacing = 0.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = DotoFontFamily,
+        fontFamily = TerminalFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 15.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 14.sp,
+        letterSpacing = 0.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = DotoFontFamily,
+        fontFamily = TerminalFontFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
-        letterSpacing = 0.5.sp
+        fontSize = 12.sp,
+        letterSpacing = 0.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = DotoFontFamily,
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 11.sp,
+        letterSpacing = 0.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        letterSpacing = 0.5.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = TerminalFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
         letterSpacing = 0.5.sp
     ),
-    labelLarge = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 13.sp,
-        letterSpacing = 1.5.sp
-    ),
-    labelMedium = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 11.sp,
-        letterSpacing = 1.sp
-    ),
     labelSmall = TextStyle(
-        fontFamily = DotoFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = TerminalFontFamily,
+        fontWeight = FontWeight.Normal,
         fontSize = 10.sp,
-        letterSpacing = 1.sp
+        letterSpacing = 0.5.sp
     )
 )

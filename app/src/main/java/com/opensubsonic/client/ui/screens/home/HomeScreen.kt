@@ -114,7 +114,7 @@ fun HomeScreen(
                 Text(
                     text = "SUBTUNE",
                     style = MaterialTheme.typography.displayMedium,
-                    color = MaterialTheme.colorScheme.secondary,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp)
                 )
             }
@@ -148,7 +148,7 @@ fun HomeScreen(
                             Text(
                                 "PLAY ALL",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }

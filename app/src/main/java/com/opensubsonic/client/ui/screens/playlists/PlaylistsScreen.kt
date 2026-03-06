@@ -149,7 +149,7 @@ fun PlaylistsScreen(
                             Icon(
                                 if (isCached) Icons.Filled.DownloadDone else Icons.Filled.Download,
                                 contentDescription = if (isCached) "Cached" else "Cache playlist",
-                                tint = if (isCached) MaterialTheme.colorScheme.secondary
+                                tint = if (isCached) MaterialTheme.colorScheme.primary
                                        else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -293,8 +293,8 @@ fun PlaylistDetailScreen(
                         FilledTonalButton(
                             onClick = viewModel::playAll,
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary,
-                                contentColor = MaterialTheme.colorScheme.onSecondary
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.weight(1f)
                         ) {

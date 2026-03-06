@@ -92,33 +92,33 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     shape = MaterialTheme.shapes.small
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
                             text = "DOWNLOADING ALL ALBUMS",
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "${bulkDownloadState.completedTracks} / ${bulkDownloadState.totalTracks} TRACKS",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         bulkDownloadState.currentTrackName?.let { trackName ->
                             Text(
                                 text = trackName,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                         bulkDownloadState.currentAlbumName?.let { albumName ->
                             Text(
                                 text = albumName,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
@@ -127,7 +127,7 @@ fun SettingsScreen(
                                 bulkDownloadState.completedTracks.toFloat() / bulkDownloadState.totalTracks
                             } else 0f,
                             modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.secondary
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }

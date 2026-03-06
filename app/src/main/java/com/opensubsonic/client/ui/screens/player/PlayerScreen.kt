@@ -110,8 +110,8 @@ fun PlayerScreen(
                 playerController.seekTo((fraction * playerState.duration).toLong())
             },
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.secondary,
-                activeTrackColor = MaterialTheme.colorScheme.secondary,
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.outline
             ),
             modifier = Modifier.fillMaxWidth()
@@ -147,7 +147,7 @@ fun PlayerScreen(
                     Icons.Filled.Shuffle,
                     contentDescription = "Shuffle",
                     tint = if (playerState.shuffleEnabled)
-                        MaterialTheme.colorScheme.secondary
+                        MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -169,8 +169,8 @@ fun PlayerScreen(
                 },
                 modifier = Modifier.size(64.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.secondary,
-                    contentColor = MaterialTheme.colorScheme.onSecondary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Icon(
@@ -207,7 +207,7 @@ fun PlayerScreen(
                     },
                     contentDescription = "Repeat mode",
                     tint = if (playerState.playbackMode != PlaybackMode.SEQUENTIAL)
-                        MaterialTheme.colorScheme.secondary
+                        MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -249,7 +249,7 @@ fun MiniPlayer(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         color = MaterialTheme.colorScheme.surfaceVariant,
-        tonalElevation = 2.dp
+        tonalElevation = 0.dp
     ) {
         Column {
             val progress = if (playerState.duration > 0) {
@@ -260,7 +260,7 @@ fun MiniPlayer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),
-                color = MaterialTheme.colorScheme.secondary,
+                color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.outline,
             )
 

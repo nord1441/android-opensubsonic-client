@@ -2,21 +2,32 @@ package com.opensubsonic.client.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Minimal palette - B&W with red accent
-val White = Color(0xFFFFFFFF)
-val Black = Color(0xFF000000)
-val OffWhite = Color(0xFFF5F5F5)
-val LightGray = Color(0xFFE0E0E0)
-val MediumGray = Color(0xFF9E9E9E)
-val DarkGray = Color(0xFF1A1A1A)
-val NearBlack = Color(0xFF0D0D0D)
+// Terminal / Sway WM inspired palette
+val TermBlack = Color(0xFF1a1b26)       // Deep dark background (Tokyo Night-ish)
+val TermDarkBg = Color(0xFF24283b)      // Slightly lighter bg for surfaces
+val TermSurfaceDark = Color(0xFF2f3549) // Surface variant
+val TermBorder = Color(0xFF3b4261)      // Borders and outlines
+val TermMuted = Color(0xFF565f89)       // Muted text / inactive
+val TermSubtle = Color(0xFF787c99)      // Subtle text
+val TermFg = Color(0xFFa9b1d6)         // Primary foreground text
+val TermBright = Color(0xFFc0caf5)     // Bright foreground
 
-// Accent
-val Red = Color(0xFFFF1A1A)
-val DarkRed = Color(0xFFCC0000)
+// Accent colors (terminal ANSI-inspired)
+val TermCyan = Color(0xFF7dcfff)        // Primary accent (like i3/sway focused)
+val TermCyanDim = Color(0xFF2ac3de)     // Cyan variant
+val TermGreen = Color(0xFF9ece6a)       // Success / active
+val TermYellow = Color(0xFFe0af68)      // Warning
+val TermRed = Color(0xFFf7768e)         // Error
+val TermMagenta = Color(0xFFbb9af7)     // Tertiary accent
+val TermOrange = Color(0xFFff9e64)      // Secondary warm accent
 
-// Surface variants
-val SurfaceLight = Color(0xFFFAFAFA)
-val SurfaceDark = Color(0xFF121212)
-val SurfaceVariantLight = Color(0xFFF0F0F0)
-val SurfaceVariantDark = Color(0xFF1E1E1E)
+// Light theme (high contrast terminal)
+val LightBg = Color(0xFFf0f0f0)         // Light bg like a light terminal
+val LightSurface = Color(0xFFe8e8e8)    // Surface
+val LightSurfaceVar = Color(0xFFdcdcdc) // Surface variant
+val LightBorder = Color(0xFFbebebe)     // Borders
+val LightFg = Color(0xFF1a1b26)         // Dark text on light
+val LightMuted = Color(0xFF5c6370)      // Muted text
+val LightCyan = Color(0xFF0097a7)       // Accent on light
+val LightGreen = Color(0xFF558b2f)      // Green on light
+val LightRed = Color(0xFFc62828)        // Error on light

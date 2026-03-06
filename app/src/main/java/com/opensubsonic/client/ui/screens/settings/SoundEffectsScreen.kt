@@ -60,8 +60,8 @@ fun SoundEffectsScreen(
                     onValueChange = { audioEffectManager.setBassBoostStrength((it * 1000).toInt()) },
                     enabled = state.bassBoostEnabled,
                     colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.secondary,
-                        activeTrackColor = MaterialTheme.colorScheme.secondary
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -193,8 +193,8 @@ fun SoundEffectsScreen(
                     onValueChange = { audioEffectManager.setCrossfeedLevel((it * 100).toInt()) },
                     enabled = state.crossfeedEnabled,
                     colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.secondary,
-                        activeTrackColor = MaterialTheme.colorScheme.secondary
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -226,8 +226,8 @@ fun SoundEffectsScreen(
                     onValueChange = { audioEffectManager.setSurroundLevel((it * 100).toInt()) },
                     enabled = state.surroundEnabled,
                     colors = SliderDefaults.colors(
-                        thumbColor = MaterialTheme.colorScheme.secondary,
-                        activeTrackColor = MaterialTheme.colorScheme.secondary
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -282,7 +282,7 @@ private fun EffectSection(
                     checked = enabled,
                     onCheckedChange = onEnabledChange,
                     colors = SwitchDefaults.colors(
-                        checkedTrackColor = MaterialTheme.colorScheme.secondary
+                        checkedTrackColor = MaterialTheme.colorScheme.primary
                     )
                 )
             }
@@ -311,8 +311,8 @@ private fun VerticalSlider(
             onValueChange = onValueChange,
             enabled = enabled,
             colors = SliderDefaults.colors(
-                thumbColor = MaterialTheme.colorScheme.secondary,
-                activeTrackColor = MaterialTheme.colorScheme.secondary,
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
                 inactiveTrackColor = MaterialTheme.colorScheme.outline
             ),
             modifier = Modifier

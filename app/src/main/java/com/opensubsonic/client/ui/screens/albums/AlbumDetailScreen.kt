@@ -175,7 +175,7 @@ fun AlbumDetailScreen(
                                 Text(
                                     text = it.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.secondary
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
@@ -190,8 +190,8 @@ fun AlbumDetailScreen(
                         FilledTonalButton(
                             onClick = viewModel::playAll,
                             colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary,
-                                contentColor = MaterialTheme.colorScheme.onSecondary
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             ),
                             modifier = Modifier.weight(1f)
                         ) {

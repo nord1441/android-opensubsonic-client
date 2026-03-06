@@ -3,7 +3,7 @@ package com.opensubsonic.client.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,7 +25,7 @@ fun CoverArtImage(
         model = url,
         contentDescription = contentDescription,
         modifier = modifier
-            .clip(RoundedCornerShape(2.dp))
+            .clip(RectangleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentScale = ContentScale.Crop
     )
@@ -92,7 +92,7 @@ fun SongListItem(
             Text(
                 text = "$track",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (isPlaying) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(28.dp)
             )
         }
@@ -100,7 +100,7 @@ fun SongListItem(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                color = if (isPlaying) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurface,
+                color = if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -194,7 +194,7 @@ fun LoadingIndicator(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
-            color = MaterialTheme.colorScheme.secondary,
+            color = MaterialTheme.colorScheme.primary,
             strokeWidth = 2.dp,
             modifier = Modifier.size(24.dp)
         )
@@ -225,7 +225,7 @@ fun ErrorMessage(
                 Text(
                     "RETRY",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.secondary
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         }
