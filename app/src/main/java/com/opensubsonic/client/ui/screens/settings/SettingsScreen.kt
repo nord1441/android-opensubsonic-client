@@ -25,6 +25,7 @@ fun SettingsScreen(
     hasSDCard: Boolean,
     onStorageLocationChange: (StorageLocation) -> Unit,
     onDownloadsClick: () -> Unit,
+    onSoundEffectsClick: () -> Unit,
     onDownloadAllAlbums: () -> Unit,
     onScanDownloads: () -> Unit,
     onLogout: () -> Unit
@@ -147,6 +148,16 @@ fun SettingsScreen(
                 title = "SCAN DOWNLOADS",
                 subtitle = "Re-link previously downloaded files",
                 onClick = onScanDownloads
+            )
+        }
+
+        // Sound effects
+        item {
+            SettingsItem(
+                icon = Icons.Filled.Equalizer,
+                title = "SOUND EFFECTS",
+                subtitle = "Equalizer, bass boost, crossfeed, surround",
+                onClick = onSoundEffectsClick
             )
         }
 

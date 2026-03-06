@@ -13,9 +13,12 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.opensubsonic.client.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
+
+    @Inject lateinit var audioEffectManager: AudioEffectManager
 
     private var mediaSession: MediaSession? = null
 
@@ -33,6 +36,9 @@ class PlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .build()
+
+        // Attach audio effects to the ExoPlayer audio session
+        audioEffectManager.attachToAudioSession(player.audioSessionId)
 
         val intent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
@@ -57,6 +63,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        audioEffectManager.release()
         mediaSession?.run {
             player.release()
             release()

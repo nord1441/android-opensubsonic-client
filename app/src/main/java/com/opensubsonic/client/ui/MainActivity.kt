@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,7 +41,9 @@ import com.opensubsonic.client.ui.screens.playlists.PlaylistsScreen
 import com.opensubsonic.client.ui.screens.settings.DownloadsScreen
 import com.opensubsonic.client.ui.screens.settings.SettingsScreen
 import com.opensubsonic.client.ui.theme.SubTuneTheme
+import com.opensubsonic.client.service.AudioEffectManager
 import com.opensubsonic.client.service.DownloadService
+import com.opensubsonic.client.ui.screens.settings.SoundEffectsScreen
 import com.opensubsonic.client.util.DownloadManager
 import com.opensubsonic.client.util.StoragePreferences
 import com.opensubsonic.client.util.SubsonicUrlHelper
@@ -56,6 +60,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var downloadManager: DownloadManager
     @Inject lateinit var musicRepository: MusicRepository
     @Inject lateinit var storagePreferences: StoragePreferences
+    @Inject lateinit var audioEffectManager: AudioEffectManager
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -75,10 +80,29 @@ class MainActivity : ComponentActivity() {
                     serverConfigHolder = serverConfigHolder,
                     downloadManager = downloadManager,
                     musicRepository = musicRepository,
-                    storagePreferences = storagePreferences
+                    storagePreferences = storagePreferences,
+                    audioEffectManager = audioEffectManager
                 )
             }
         }
+    }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        // Volume button track skip when screen is off
+        val powerManager = getSystemService(POWER_SERVICE) as PowerManager
+        if (!powerManager.isInteractive && playerController.playerState.value.isPlaying) {
+            when (keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> {
+                    playerController.next()
+                    return true
+                }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                    playerController.previous()
+                    return true
+                }
+            }
+        }
+        return super.onKeyDown(keyCode, event)
     }
 
     override fun onDestroy() {
@@ -109,7 +133,8 @@ fun SubTuneApp(
     serverConfigHolder: ServerConfigHolder,
     downloadManager: DownloadManager,
     musicRepository: MusicRepository,
-    storagePreferences: StoragePreferences
+    storagePreferences: StoragePreferences,
+    audioEffectManager: AudioEffectManager
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
@@ -305,6 +330,7 @@ fun SubTuneApp(
                         scope.launch { storagePreferences.setStorageLocation(location) }
                     },
                     onDownloadsClick = { navController.navigate(Screen.Downloads.route) },
+                    onSoundEffectsClick = { navController.navigate(Screen.SoundEffects.route) },
                     onDownloadAllAlbums = {
                         activeServer?.let { server ->
                             DownloadService.start(navController.context, server)
@@ -324,6 +350,13 @@ fun SubTuneApp(
                             popUpTo(0) { inclusive = true }
                         }
                     }
+                )
+            }
+
+            composable(Screen.SoundEffects.route) {
+                SoundEffectsScreen(
+                    audioEffectManager = audioEffectManager,
+                    onBack = { navController.popBackStack() }
                 )
             }
 
