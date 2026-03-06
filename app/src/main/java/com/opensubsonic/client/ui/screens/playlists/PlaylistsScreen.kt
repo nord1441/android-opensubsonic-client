@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,13 +38,17 @@ import javax.inject.Inject
 @HiltViewModel
 class PlaylistsViewModel @Inject constructor(
     private val musicRepository: MusicRepository,
-    private val serverRepository: ServerRepository
+    private val serverRepository: ServerRepository,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
     val playlists: StateFlow<List<Playlist>> = _playlists
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
+
+    private val _cachedPlaylistIds = MutableStateFlow<Set<String>>(emptySet())
+    val cachedPlaylistIds: StateFlow<Set<String>> = _cachedPlaylistIds
 
     var server: ServerConfig? = null
         private set
@@ -65,7 +70,29 @@ class PlaylistsViewModel @Inject constructor(
                     _playlists.value = musicRepository.getPlaylistsFlow().first()
                 }
             }
+            // Check which playlists have all songs downloaded
+            val cachedIds = mutableSetOf<String>()
+            for (playlist in _playlists.value) {
+                val songs = musicRepository.getPlaylistSongs(playlist.id).first()
+                if (songs.isNotEmpty() && songs.all { it.isDownloaded }) {
+                    cachedIds.add(playlist.id)
+                }
+            }
+            _cachedPlaylistIds.value = cachedIds
             _isLoading.value = false
+        }
+    }
+
+    fun cachePlaylist(playlistId: String) {
+        viewModelScope.launch {
+            val s = server ?: return@launch
+            try {
+                val (_, songs) = musicRepository.getPlaylistDetail(playlistId)
+                for (song in songs) {
+                    downloadManager.downloadSong(song, s)
+                }
+                _cachedPlaylistIds.value = _cachedPlaylistIds.value + playlistId
+            } catch (_: Exception) {}
         }
     }
 }
@@ -77,6 +104,7 @@ fun PlaylistsScreen(
 ) {
     val playlists by viewModel.playlists.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val cachedIds by viewModel.cachedPlaylistIds.collectAsState()
     val server = viewModel.server
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -94,14 +122,34 @@ fun PlaylistsScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 items(playlists) { playlist ->
-                    ListItemRow(
-                        title = playlist.name,
-                        subtitle = "${playlist.songCount} tracks · ${formatDuration(playlist.duration)}",
-                        coverArtUrl = playlist.coverArt?.let {
-                            server?.let { s -> SubsonicUrlHelper.getCoverArtUrl(s, it) }
-                        },
-                        onClick = { onPlaylistClick(playlist.id) }
-                    )
+                    val isCached = playlist.id in cachedIds
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            ListItemRow(
+                                title = playlist.name,
+                                subtitle = "${playlist.songCount} tracks · ${formatDuration(playlist.duration)}" +
+                                    if (isCached) " · Cached" else "",
+                                coverArtUrl = playlist.coverArt?.let {
+                                    server?.let { s -> SubsonicUrlHelper.getCoverArtUrl(s, it) }
+                                },
+                                onClick = { onPlaylistClick(playlist.id) }
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.cachePlaylist(playlist.id) },
+                            enabled = !isCached
+                        ) {
+                            Icon(
+                                if (isCached) Icons.Filled.DownloadDone else Icons.Filled.Download,
+                                contentDescription = if (isCached) "Cached" else "Cache playlist",
+                                tint = if (isCached) MaterialTheme.colorScheme.secondary
+                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
             }
         }

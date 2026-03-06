@@ -15,12 +15,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.util.BulkDownloadState
+import com.opensubsonic.client.util.StorageLocation
 
 @Composable
 fun SettingsScreen(
     server: ServerConfig?,
     bulkDownloadState: BulkDownloadState,
-    onGenresClick: () -> Unit,
+    storageLocation: StorageLocation,
+    hasSDCard: Boolean,
+    onStorageLocationChange: (StorageLocation) -> Unit,
     onDownloadsClick: () -> Unit,
     onDownloadAllAlbums: () -> Unit,
     onScanDownloads: () -> Unit,
@@ -68,16 +71,6 @@ fun SettingsScreen(
         }
 
         item { Spacer(modifier = Modifier.height(16.dp)) }
-
-        // Genres
-        item {
-            SettingsItem(
-                icon = Icons.Filled.MusicNote,
-                title = "GENRES",
-                subtitle = "Browse by genre",
-                onClick = onGenresClick
-            )
-        }
 
         // Downloads
         item {
@@ -155,6 +148,53 @@ fun SettingsScreen(
                 subtitle = "Re-link previously downloaded files",
                 onClick = onScanDownloads
             )
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        // Storage location
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "STORAGE LOCATION",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = storageLocation == StorageLocation.INTERNAL,
+                            onClick = { onStorageLocationChange(StorageLocation.INTERNAL) }
+                        )
+                        Text(
+                            text = "Internal storage",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = storageLocation == StorageLocation.SD_CARD,
+                            onClick = { onStorageLocationChange(StorageLocation.SD_CARD) },
+                            enabled = hasSDCard
+                        )
+                        Text(
+                            text = if (hasSDCard) "SD card" else "SD card (not detected)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (hasSDCard) MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                    }
+                }
+            }
         }
 
         item { Spacer(modifier = Modifier.height(24.dp)) }

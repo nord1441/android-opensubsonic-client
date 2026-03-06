@@ -41,7 +41,8 @@ class DownloadManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val okHttpClient: OkHttpClient,
     private val musicRepository: MusicRepository,
-    private val subsonicClient: SubsonicClient
+    private val subsonicClient: SubsonicClient,
+    private val storagePreferences: StoragePreferences
 ) {
     private val _activeDownloads = MutableStateFlow<Map<String, DownloadProgress>>(emptyMap())
     val activeDownloads: StateFlow<Map<String, DownloadProgress>> = _activeDownloads
@@ -83,8 +84,13 @@ class DownloadManager @Inject constructor(
 
                 val body = response.body ?: return@withContext
                 val fileName = buildStableFileName(song)
+                val storageLocation = storagePreferences.getStorageLocationSync()
 
-                val localPath = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val localPath = if (storageLocation == StorageLocation.SD_CARD) {
+                    val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+                    if (sdDir != null) saveToDir(fileName, body.byteStream(), sdDir)
+                    else saveToFile(fileName, body.byteStream())
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     saveWithMediaStore(fileName, song, body.byteStream())
                 } else {
                     saveToFile(fileName, body.byteStream())
@@ -164,11 +170,20 @@ class DownloadManager @Inject constructor(
     }
 
     private fun isSongFileExists(songId: String): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            isSongFileExistsMediaStore(songId)
-        } else {
-            isSongFileExistsFileSystem(songId)
+        // Check MediaStore (internal storage, API 29+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isSongFileExistsMediaStore(songId)) {
+            return true
         }
+        // Check internal filesystem
+        if (isSongFileExistsInDir(songId, getInternalMusicDir())) {
+            return true
+        }
+        // Check SD card
+        val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+        if (sdDir != null && isSongFileExistsInDir(songId, sdDir)) {
+            return true
+        }
+        return false
     }
 
     private fun isSongFileExistsMediaStore(songId: String): Boolean {
@@ -186,14 +201,14 @@ class DownloadManager @Inject constructor(
         return false
     }
 
+    private fun isSongFileExistsInDir(songId: String, dir: File): Boolean {
+        if (!dir.exists()) return false
+        return dir.listFiles()?.any { it.name.startsWith("${songId}__") } == true
+    }
+
     @Suppress("DEPRECATION")
-    private fun isSongFileExistsFileSystem(songId: String): Boolean {
-        val musicDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-            SUBTUNE_DIR
-        )
-        if (!musicDir.exists()) return false
-        return musicDir.listFiles()?.any { it.name.startsWith("${songId}__") } == true
+    private fun getInternalMusicDir(): File {
+        return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), SUBTUNE_DIR)
     }
 
     private fun isFileAccessible(path: String): Boolean {
@@ -214,7 +229,12 @@ class DownloadManager @Inject constructor(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 scanMediaStore()
             } else {
-                scanFileSystem()
+                scanDirectory(getInternalMusicDir())
+            }
+            // Also scan SD card directory
+            val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+            if (sdDir != null) {
+                scanDirectory(sdDir)
             }
         }
     }
@@ -257,12 +277,7 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    @Suppress("DEPRECATION")
-    private suspend fun scanFileSystem() {
-        val musicDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-            SUBTUNE_DIR
-        )
+    private suspend fun scanDirectory(musicDir: File) {
         if (!musicDir.exists()) return
 
         musicDir.listFiles()?.forEach { file ->
@@ -306,12 +321,12 @@ class DownloadManager @Inject constructor(
 
     @Suppress("DEPRECATION")
     private fun saveToFile(fileName: String, inputStream: java.io.InputStream): String? {
-        val musicDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
-            SUBTUNE_DIR
-        )
-        if (!musicDir.exists()) musicDir.mkdirs()
-        val file = File(musicDir, fileName)
+        return saveToDir(fileName, inputStream, getInternalMusicDir())
+    }
+
+    private fun saveToDir(fileName: String, inputStream: java.io.InputStream, dir: File): String? {
+        if (!dir.exists()) dir.mkdirs()
+        val file = File(dir, fileName)
         inputStream.use { input ->
             file.outputStream().use { output ->
                 input.copyTo(output)

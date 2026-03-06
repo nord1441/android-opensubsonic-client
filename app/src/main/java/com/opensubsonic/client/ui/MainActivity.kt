@@ -30,8 +30,6 @@ import com.opensubsonic.client.ui.screens.albums.AlbumDetailScreen
 import com.opensubsonic.client.ui.screens.albums.AlbumsScreen
 import com.opensubsonic.client.ui.screens.artists.ArtistDetailScreen
 import com.opensubsonic.client.ui.screens.artists.ArtistsScreen
-import com.opensubsonic.client.ui.screens.genres.GenreDetailScreen
-import com.opensubsonic.client.ui.screens.genres.GenresScreen
 import com.opensubsonic.client.ui.screens.home.HomeScreen
 import com.opensubsonic.client.ui.screens.login.LoginScreen
 import com.opensubsonic.client.ui.screens.player.MiniPlayer
@@ -43,6 +41,7 @@ import com.opensubsonic.client.ui.screens.settings.SettingsScreen
 import com.opensubsonic.client.ui.theme.SubTuneTheme
 import com.opensubsonic.client.service.DownloadService
 import com.opensubsonic.client.util.DownloadManager
+import com.opensubsonic.client.util.StoragePreferences
 import com.opensubsonic.client.util.SubsonicUrlHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -56,6 +55,7 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var serverConfigHolder: ServerConfigHolder
     @Inject lateinit var downloadManager: DownloadManager
     @Inject lateinit var musicRepository: MusicRepository
+    @Inject lateinit var storagePreferences: StoragePreferences
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -74,7 +74,8 @@ class MainActivity : ComponentActivity() {
                     serverRepository = serverRepository,
                     serverConfigHolder = serverConfigHolder,
                     downloadManager = downloadManager,
-                    musicRepository = musicRepository
+                    musicRepository = musicRepository,
+                    storagePreferences = storagePreferences
                 )
             }
         }
@@ -107,13 +108,18 @@ fun SubTuneApp(
     serverRepository: ServerRepository,
     serverConfigHolder: ServerConfigHolder,
     downloadManager: DownloadManager,
-    musicRepository: MusicRepository
+    musicRepository: MusicRepository,
+    storagePreferences: StoragePreferences
 ) {
     val navController = rememberNavController()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val playerState by playerController.playerState.collectAsState()
     val bulkDownloadState by downloadManager.bulkDownloadState.collectAsState()
+    val currentStorageLocation by storagePreferences.storageLocation.collectAsState(
+        initial = com.opensubsonic.client.util.StorageLocation.INTERNAL
+    )
+    val hasSDCard = remember { storagePreferences.hasSDCard() }
     val scope = rememberCoroutineScope()
 
     var activeServer by remember { mutableStateOf<ServerConfig?>(null) }
@@ -263,22 +269,6 @@ fun SubTuneApp(
                 )
             }
 
-            composable(Screen.Genres.route) {
-                GenresScreen(
-                    onGenreClick = { navController.navigate(Screen.GenreDetail.createRoute(it)) }
-                )
-            }
-
-            composable(
-                Screen.GenreDetail.route,
-                arguments = listOf(navArgument("genreName") { type = NavType.StringType })
-            ) {
-                GenreDetailScreen(
-                    onBack = { navController.popBackStack() },
-                    onAlbumClick = { navController.navigate(Screen.AlbumDetail.createRoute(it)) }
-                )
-            }
-
             composable(Screen.Playlists.route) {
                 PlaylistsScreen(
                     onPlaylistClick = { navController.navigate(Screen.PlaylistDetail.createRoute(it)) }
@@ -307,7 +297,11 @@ fun SubTuneApp(
                 SettingsScreen(
                     server = activeServer,
                     bulkDownloadState = bulkDownloadState,
-                    onGenresClick = { navController.navigate(Screen.Genres.route) },
+                    storageLocation = currentStorageLocation,
+                    hasSDCard = hasSDCard,
+                    onStorageLocationChange = { location ->
+                        scope.launch { storagePreferences.setStorageLocation(location) }
+                    },
                     onDownloadsClick = { navController.navigate(Screen.Downloads.route) },
                     onDownloadAllAlbums = {
                         activeServer?.let { server ->
