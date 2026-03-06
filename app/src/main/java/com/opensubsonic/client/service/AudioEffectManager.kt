@@ -2,7 +2,7 @@ package com.opensubsonic.client.service
 
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
-import android.media.audiofx.PresetReverb
+import android.media.audiofx.EnvironmentalReverb
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -51,7 +51,8 @@ class AudioEffectManager @Inject constructor(
 
     private var bassBoost: BassBoost? = null
     private var equalizer: Equalizer? = null
-    private var reverb: PresetReverb? = null
+    private var crossfeedReverb: EnvironmentalReverb? = null
+    private var surroundReverb: EnvironmentalReverb? = null
     private var currentAudioSessionId: Int = 0
 
     companion object {
@@ -75,11 +76,16 @@ class AudioEffectManager @Inject constructor(
 
         try {
             bassBoost = BassBoost(0, audioSessionId)
+        } catch (_: Exception) {}
+        try {
             equalizer = Equalizer(0, audioSessionId)
-            reverb = PresetReverb(0, audioSessionId)
-        } catch (_: Exception) {
-            // Some devices don't support all effects
-        }
+        } catch (_: Exception) {}
+        try {
+            crossfeedReverb = EnvironmentalReverb(0, audioSessionId)
+        } catch (_: Exception) {}
+        try {
+            surroundReverb = EnvironmentalReverb(0, audioSessionId)
+        } catch (_: Exception) {}
 
         // Load saved state and apply
         scope.launch {
@@ -135,9 +141,8 @@ class AudioEffectManager @Inject constructor(
         val s = _state.value
         applyBassBoost(s.bassBoostEnabled, s.bassBoostStrength)
         applyEqualizer(s.equalizerEnabled, s.equalizerBands)
-        applySurround(s.surroundEnabled, s.surroundLevel)
-        // Crossfeed is applied as EQ-based stereo narrowing via the reverb
         applyCrossfeed(s.crossfeedEnabled, s.crossfeedLevel)
+        applySurround(s.surroundEnabled, s.surroundLevel)
     }
 
     // --- Bass Boost ---
@@ -231,7 +236,8 @@ class AudioEffectManager @Inject constructor(
     }
 
     // --- Crossfeed ---
-    // Simulated using a subtle reverb to blend stereo channels
+    // Uses EnvironmentalReverb with short decay + high diffusion to blend stereo channels.
+    // Short room dimensions + high diffusion creates natural channel blending.
 
     fun setCrossfeedEnabled(enabled: Boolean) {
         _state.value = _state.value.copy(crossfeedEnabled = enabled)
@@ -247,25 +253,50 @@ class AudioEffectManager @Inject constructor(
 
     private fun applyCrossfeed(enabled: Boolean, level: Int) {
         try {
-            reverb?.let {
-                if (enabled && !_state.value.surroundEnabled) {
-                    // Use a small room reverb to simulate crossfeed blending
-                    val preset = when {
-                        level < 33 -> PresetReverb.PRESET_SMALLROOM
-                        level < 66 -> PresetReverb.PRESET_MEDIUMROOM
-                        else -> PresetReverb.PRESET_LARGEROOM
-                    }
-                    it.preset = preset
-                    it.enabled = true
-                } else if (!_state.value.surroundEnabled) {
-                    it.enabled = false
+            crossfeedReverb?.let { reverb ->
+                if (enabled) {
+                    // Crossfeed: short decay simulating near-field speaker bleed.
+                    // level 0-100 maps to increasing reverb presence.
+                    val t = level / 100f
+
+                    // Room level: how much original signal goes through the reverb
+                    // Range: -9000 (very quiet) to 0 (full). We use -4000 to -500.
+                    val roomLevel = (-4000 + (t * 3500).toInt()).toShort()
+
+                    // Reverb level: the wet reverb output level
+                    // Range: -9000 to 0 (2000 max). We use -3000 to 0.
+                    val reverbLevel = (-3000 + (t * 3000).toInt()).toShort()
+
+                    // Short decay (100-400ms) for tight crossfeed, not washy reverb
+                    val decayTime = (100 + (t * 300).toInt())
+
+                    // High diffusion = more channel mixing (blending), 0-1000
+                    val diffusion = (700 + (t * 300).toInt()).toShort()
+
+                    // Small room dimensions for intimate crossfeed feel
+                    val density = (800 + (t * 200).toInt()).toShort()
+
+                    reverb.roomLevel = roomLevel
+                    reverb.reverbLevel = reverbLevel
+                    reverb.decayTime = decayTime
+                    reverb.diffusion = diffusion
+                    reverb.density = density
+                    // Short reflections for direct channel blending
+                    reverb.reflectionsLevel = (-1000 + (t * 800).toInt()).toShort()
+                    reverb.reflectionsDelay = 10 // ms, very short
+                    reverb.reverbDelay = 20 // ms
+                    reverb.decayHFRatio = 800.toShort() // slightly damped high freq
+
+                    reverb.enabled = true
+                } else {
+                    reverb.enabled = false
                 }
             }
         } catch (_: Exception) {}
     }
 
     // --- Surround ---
-    // Simulated using reverb presets for spatial effect
+    // Uses EnvironmentalReverb with long decay + large room to create spacious surround.
 
     fun setSurroundEnabled(enabled: Boolean) {
         _state.value = _state.value.copy(surroundEnabled = enabled)
@@ -281,21 +312,40 @@ class AudioEffectManager @Inject constructor(
 
     private fun applySurround(enabled: Boolean, level: Int) {
         try {
-            reverb?.let {
+            surroundReverb?.let { reverb ->
                 if (enabled) {
-                    val preset = when {
-                        level < 25 -> PresetReverb.PRESET_MEDIUMHALL
-                        level < 50 -> PresetReverb.PRESET_LARGEHALL
-                        level < 75 -> PresetReverb.PRESET_PLATE
-                        else -> PresetReverb.PRESET_LARGEHALL
-                    }
-                    it.preset = preset
-                    it.enabled = true
-                } else if (!_state.value.crossfeedEnabled) {
-                    it.enabled = false
+                    // Surround: long decay + wide room for spacious immersive feel.
+                    val t = level / 100f
+
+                    // Room level: -3000 to -200 (louder = more present)
+                    val roomLevel = (-3000 + (t * 2800).toInt()).toShort()
+
+                    // Reverb level: -2000 to 0 (strong wet signal)
+                    val reverbLevel = (-2000 + (t * 2000).toInt()).toShort()
+
+                    // Long decay (800ms-3000ms) for spacious hall feel
+                    val decayTime = (800 + (t * 2200).toInt())
+
+                    // Wide diffusion for enveloping sound, 0-1000
+                    val diffusion = (600 + (t * 400).toInt()).toShort()
+
+                    // High density for rich reverb texture
+                    val density = (600 + (t * 400).toInt()).toShort()
+
+                    reverb.roomLevel = roomLevel
+                    reverb.reverbLevel = reverbLevel
+                    reverb.decayTime = decayTime
+                    reverb.diffusion = diffusion
+                    reverb.density = density
+                    // Prominent early reflections for spatial cues
+                    reverb.reflectionsLevel = (-500 + (t * 400).toInt()).toShort()
+                    reverb.reflectionsDelay = (15 + (t * 25).toInt()) // 15-40ms
+                    reverb.reverbDelay = (30 + (t * 30).toInt()) // 30-60ms
+                    reverb.decayHFRatio = (500 + (t * 500).toInt()).toShort() // brighter at higher levels
+
+                    reverb.enabled = true
                 } else {
-                    // Re-apply crossfeed if it's enabled
-                    applyCrossfeed(true, _state.value.crossfeedLevel)
+                    reverb.enabled = false
                 }
             }
         } catch (_: Exception) {}
@@ -304,10 +354,12 @@ class AudioEffectManager @Inject constructor(
     private fun releaseEffects() {
         try { bassBoost?.release() } catch (_: Exception) {}
         try { equalizer?.release() } catch (_: Exception) {}
-        try { reverb?.release() } catch (_: Exception) {}
+        try { crossfeedReverb?.release() } catch (_: Exception) {}
+        try { surroundReverb?.release() } catch (_: Exception) {}
         bassBoost = null
         equalizer = null
-        reverb = null
+        crossfeedReverb = null
+        surroundReverb = null
     }
 
     fun release() {
