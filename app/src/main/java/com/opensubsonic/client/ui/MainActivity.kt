@@ -145,6 +145,18 @@ fun SubTuneApp(
         initial = com.opensubsonic.client.util.StorageLocation.INTERNAL
     )
     val hasSDCard = remember { storagePreferences.hasSDCard() }
+    val currentStreamFormat by storagePreferences.streamFormat.collectAsState(
+        initial = com.opensubsonic.client.util.TranscodeFormat.RAW
+    )
+    val currentStreamBitrate by storagePreferences.streamBitrate.collectAsState(
+        initial = com.opensubsonic.client.util.TranscodeBitrate.UNLIMITED
+    )
+    val currentDownloadFormat by storagePreferences.downloadFormat.collectAsState(
+        initial = com.opensubsonic.client.util.TranscodeFormat.RAW
+    )
+    val currentDownloadBitrate by storagePreferences.downloadBitrate.collectAsState(
+        initial = com.opensubsonic.client.util.TranscodeBitrate.UNLIMITED
+    )
     val scope = rememberCoroutineScope()
 
     var activeServer by remember { mutableStateOf<ServerConfig?>(null) }
@@ -342,6 +354,22 @@ fun SubTuneApp(
                         scope.launch {
                             downloadManager.scanAndRemapDownloads()
                         }
+                    },
+                    streamFormat = currentStreamFormat,
+                    streamBitrate = currentStreamBitrate,
+                    downloadFormat = currentDownloadFormat,
+                    downloadBitrate = currentDownloadBitrate,
+                    onStreamFormatChange = { format ->
+                        scope.launch { storagePreferences.setStreamFormat(format) }
+                    },
+                    onStreamBitrateChange = { bitrate ->
+                        scope.launch { storagePreferences.setStreamBitrate(bitrate) }
+                    },
+                    onDownloadFormatChange = { format ->
+                        scope.launch { storagePreferences.setDownloadFormat(format) }
+                    },
+                    onDownloadBitrateChange = { bitrate ->
+                        scope.launch { storagePreferences.setDownloadBitrate(bitrate) }
                     },
                     onLogout = {
                         scope.launch {

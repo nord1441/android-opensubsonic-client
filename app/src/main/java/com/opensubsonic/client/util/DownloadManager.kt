@@ -76,7 +76,9 @@ class DownloadManager @Inject constructor(
 
                 _activeDownloads.value = _activeDownloads.value + (song.id to DownloadProgress(song.id, 0f))
 
-                val url = SubsonicUrlHelper.getDownloadUrl(server, song.id)
+                val dlFormat = storagePreferences.getDownloadFormatSync()
+                val dlBitrate = storagePreferences.getDownloadBitrateSync()
+                val url = SubsonicUrlHelper.getDownloadUrl(server, song.id, dlFormat.apiValue, dlBitrate.value)
                 val request = Request.Builder().url(url).build()
                 val response = okHttpClient.newCall(request).execute()
 

@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.util.BulkDownloadState
 import com.opensubsonic.client.util.StorageLocation
+import com.opensubsonic.client.util.TranscodeBitrate
+import com.opensubsonic.client.util.TranscodeFormat
 
 @Composable
 fun SettingsScreen(
@@ -28,6 +30,14 @@ fun SettingsScreen(
     onSoundEffectsClick: () -> Unit,
     onDownloadAllAlbums: () -> Unit,
     onScanDownloads: () -> Unit,
+    streamFormat: TranscodeFormat,
+    streamBitrate: TranscodeBitrate,
+    downloadFormat: TranscodeFormat,
+    downloadBitrate: TranscodeBitrate,
+    onStreamFormatChange: (TranscodeFormat) -> Unit,
+    onStreamBitrateChange: (TranscodeBitrate) -> Unit,
+    onDownloadFormatChange: (TranscodeFormat) -> Unit,
+    onDownloadBitrateChange: (TranscodeBitrate) -> Unit,
     onLogout: () -> Unit
 ) {
     LazyColumn(
@@ -163,6 +173,34 @@ fun SettingsScreen(
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
+        // Streaming quality
+        item {
+            TranscodeSection(
+                title = "STREAMING QUALITY",
+                subtitle = "Transcode when streaming from server",
+                selectedFormat = streamFormat,
+                selectedBitrate = streamBitrate,
+                onFormatChange = onStreamFormatChange,
+                onBitrateChange = onStreamBitrateChange
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
+        // Download quality
+        item {
+            TranscodeSection(
+                title = "DOWNLOAD QUALITY",
+                subtitle = "Transcode when downloading from server",
+                selectedFormat = downloadFormat,
+                selectedBitrate = downloadBitrate,
+                onFormatChange = onDownloadFormatChange,
+                onBitrateChange = onDownloadBitrateChange
+            )
+        }
+
+        item { Spacer(modifier = Modifier.height(8.dp)) }
+
         // Storage location
         item {
             Surface(
@@ -273,5 +311,153 @@ private fun SettingsItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )
+    }
+}
+
+@Composable
+private fun TranscodeSection(
+    title: String,
+    subtitle: String,
+    selectedFormat: TranscodeFormat,
+    selectedBitrate: TranscodeBitrate,
+    onFormatChange: (TranscodeFormat) -> Unit,
+    onBitrateChange: (TranscodeBitrate) -> Unit
+) {
+    var formatExpanded by remember { mutableStateOf(false) }
+    var bitrateExpanded by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Format selector
+            Text(
+                text = "FORMAT",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { formatExpanded = true },
+                    color = MaterialTheme.colorScheme.surface,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedFormat.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            Icons.Filled.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = formatExpanded,
+                    onDismissRequest = { formatExpanded = false }
+                ) {
+                    TranscodeFormat.entries.forEach { format ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = format.label,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            onClick = {
+                                onFormatChange(format)
+                                formatExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Bitrate selector
+            Text(
+                text = "MAX BITRATE",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Box {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = selectedFormat != TranscodeFormat.RAW) {
+                            bitrateExpanded = true
+                        },
+                    color = if (selectedFormat != TranscodeFormat.RAW)
+                        MaterialTheme.colorScheme.surface
+                    else MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (selectedFormat == TranscodeFormat.RAW) "N/A" else selectedBitrate.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (selectedFormat != TranscodeFormat.RAW)
+                                MaterialTheme.colorScheme.onSurface
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Icon(
+                            Icons.Filled.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = bitrateExpanded,
+                    onDismissRequest = { bitrateExpanded = false }
+                ) {
+                    TranscodeBitrate.entries.forEach { bitrate ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = bitrate.label,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            },
+                            onClick = {
+                                onBitrateChange(bitrate)
+                                bitrateExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
     }
 }

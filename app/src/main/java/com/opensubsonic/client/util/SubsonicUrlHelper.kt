@@ -22,15 +22,36 @@ object SubsonicUrlHelper {
         return token to salt
     }
 
-    fun getStreamUrl(server: ServerConfig, songId: String): String {
-        return buildUrl(server, "rest/stream", mapOf("id" to songId))
+    fun getStreamUrl(
+        server: ServerConfig,
+        songId: String,
+        format: String? = null,
+        maxBitRate: Int? = null
+    ): String {
+        val params = mutableMapOf("id" to songId)
+        if (format != null && format != "raw") params["format"] = format
+        if (maxBitRate != null && maxBitRate > 0) params["maxBitRate"] = maxBitRate.toString()
+        return buildUrl(server, "rest/stream", params)
     }
 
     fun getCoverArtUrl(server: ServerConfig, coverArtId: String, size: Int = 300): String {
         return buildUrl(server, "rest/getCoverArt", mapOf("id" to coverArtId, "size" to size.toString()))
     }
 
-    fun getDownloadUrl(server: ServerConfig, songId: String): String {
+    fun getDownloadUrl(
+        server: ServerConfig,
+        songId: String,
+        format: String? = null,
+        maxBitRate: Int? = null
+    ): String {
+        // Subsonic download endpoint doesn't support transcoding natively,
+        // but stream endpoint with transcoding params works for this purpose
+        if (format != null && format != "raw" || maxBitRate != null && maxBitRate > 0) {
+            val params = mutableMapOf("id" to songId)
+            if (format != null && format != "raw") params["format"] = format
+            if (maxBitRate != null && maxBitRate > 0) params["maxBitRate"] = maxBitRate.toString()
+            return buildUrl(server, "rest/stream", params)
+        }
         return buildUrl(server, "rest/download", mapOf("id" to songId))
     }
 

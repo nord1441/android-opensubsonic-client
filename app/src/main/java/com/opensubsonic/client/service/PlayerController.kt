@@ -15,11 +15,13 @@ import com.opensubsonic.client.data.db.MusicDao
 import com.opensubsonic.client.data.model.PlaybackMode
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
+import com.opensubsonic.client.util.StoragePreferences
 import com.opensubsonic.client.util.SubsonicUrlHelper
 import com.opensubsonic.client.widget.PlaybackWidgetProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -37,7 +39,8 @@ data class PlayerState(
 @Singleton
 class PlayerController @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val musicDao: MusicDao
+    private val musicDao: MusicDao,
+    private val storagePreferences: StoragePreferences
 ) {
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
@@ -156,7 +159,10 @@ class PlayerController @Inject constructor(
         val streamUrl = if (isDownloaded && localPath != null) {
             localPath
         } else {
-            SubsonicUrlHelper.getStreamUrl(server, id)
+            val (format, bitrate) = runBlocking {
+                storagePreferences.getStreamFormatSync() to storagePreferences.getStreamBitrateSync()
+            }
+            SubsonicUrlHelper.getStreamUrl(server, id, format.apiValue, bitrate.value)
         }
 
         val artworkUri = coverArt?.let {
