@@ -60,7 +60,7 @@ class DownloadService : Service() {
         val username = intent.getStringExtra(EXTRA_SERVER_USERNAME) ?: run { stopSelf(); return START_NOT_STICKY }
         val password = intent.getStringExtra(EXTRA_SERVER_PASSWORD) ?: run { stopSelf(); return START_NOT_STICKY }
 
-        val server = ServerConfig(url = url, username = username, password = password)
+        val server = ServerConfig(name = "", url = url, username = username, password = password)
 
         isRunning = true
         startForeground(NOTIFICATION_ID, buildNotification("Preparing download..."))
