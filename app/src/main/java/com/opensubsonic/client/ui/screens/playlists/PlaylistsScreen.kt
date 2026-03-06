@@ -150,7 +150,7 @@ fun PlaylistsScreen(
                                 if (isCached) Icons.Filled.DownloadDone else Icons.Filled.Download,
                                 contentDescription = if (isCached) "Cached" else "Cache playlist",
                                 tint = if (isCached) MaterialTheme.colorScheme.primary
-                                       else MaterialTheme.colorScheme.onSurfaceVariant
+                                       else MaterialTheme.colorScheme.secondary
                             )
                         }
                     }

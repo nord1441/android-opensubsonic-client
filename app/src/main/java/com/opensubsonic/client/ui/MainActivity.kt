@@ -227,6 +227,8 @@ fun SubTuneApp(
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.primary,
                                     selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    unselectedIconColor = MaterialTheme.colorScheme.secondary,
+                                    unselectedTextColor = MaterialTheme.colorScheme.secondary,
                                     indicatorColor = MaterialTheme.colorScheme.primaryContainer
                                 )
                             )

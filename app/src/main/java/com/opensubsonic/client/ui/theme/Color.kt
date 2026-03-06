@@ -12,12 +12,13 @@ val TermSubtle = Color(0xFF787c99)      // Subtle text
 val TermFg = Color(0xFFa9b1d6)         // Primary foreground text
 val TermBright = Color(0xFFc0caf5)     // Bright foreground
 
-// Accent colors (terminal ANSI-inspired)
-val TermCyan = Color(0xFF7dcfff)        // Primary accent (like i3/sway focused)
-val TermCyanDim = Color(0xFF2ac3de)     // Cyan variant
-val TermGreen = Color(0xFF9ece6a)       // Success / active
+// Accent colors
+val TermRed = Color(0xFFf7768e)         // Primary accent (active/selected)
+val TermRedDim = Color(0xFF914455)      // Dim red (inactive/unselected buttons)
+val TermRedContainer = Color(0xFF3d1f28) // Dark red container bg
+val TermCyan = Color(0xFF7dcfff)        // Info accent
+val TermGreen = Color(0xFF9ece6a)       // Success
 val TermYellow = Color(0xFFe0af68)      // Warning
-val TermRed = Color(0xFFf7768e)         // Error
 val TermMagenta = Color(0xFFbb9af7)     // Tertiary accent
 val TermOrange = Color(0xFFff9e64)      // Secondary warm accent
 
@@ -28,6 +29,6 @@ val LightSurfaceVar = Color(0xFFdcdcdc) // Surface variant
 val LightBorder = Color(0xFFbebebe)     // Borders
 val LightFg = Color(0xFF1a1b26)         // Dark text on light
 val LightMuted = Color(0xFF5c6370)      // Muted text
-val LightCyan = Color(0xFF0097a7)       // Accent on light
-val LightGreen = Color(0xFF558b2f)      // Green on light
-val LightRed = Color(0xFFc62828)        // Error on light
+val LightRed = Color(0xFFc62828)        // Accent on light (active)
+val LightRedDim = Color(0xFF8c1c1c)     // Dim red on light (inactive)
+val LightRedContainer = Color(0xFFf5d5d5) // Light red container

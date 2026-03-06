@@ -148,7 +148,7 @@ fun PlayerScreen(
                     contentDescription = "Shuffle",
                     tint = if (playerState.shuffleEnabled)
                         MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.secondary
                 )
             }
 
@@ -208,7 +208,7 @@ fun PlayerScreen(
                     contentDescription = "Repeat mode",
                     tint = if (playerState.playbackMode != PlaybackMode.SEQUENTIAL)
                         MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.secondary
                 )
             }
         }

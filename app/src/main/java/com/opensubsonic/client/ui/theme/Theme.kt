@@ -10,19 +10,20 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = TermCyan,
+    primary = TermRed,
     onPrimary = TermBlack,
-    primaryContainer = TermSurfaceDark,
-    onPrimaryContainer = TermCyan,
-    secondary = TermGreen,
-    onSecondary = TermBlack,
-    secondaryContainer = TermSurfaceDark,
-    onSecondaryContainer = TermGreen,
+    primaryContainer = TermRedContainer,
+    onPrimaryContainer = TermRed,
+    secondary = TermRedDim,
+    onSecondary = TermFg,
+    secondaryContainer = TermRedContainer,
+    onSecondaryContainer = TermRedDim,
     tertiary = TermMagenta,
     onTertiary = TermBlack,
     background = TermBlack,
@@ -33,19 +34,19 @@ private val DarkColorScheme = darkColorScheme(
     onSurfaceVariant = TermSubtle,
     outline = TermBorder,
     outlineVariant = TermBorder,
-    error = TermRed,
+    error = TermOrange,
     onError = TermBlack
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = LightCyan,
+    primary = LightRed,
     onPrimary = LightBg,
-    primaryContainer = LightSurfaceVar,
-    onPrimaryContainer = LightCyan,
-    secondary = LightGreen,
+    primaryContainer = LightRedContainer,
+    onPrimaryContainer = LightRed,
+    secondary = LightRedDim,
     onSecondary = LightBg,
-    secondaryContainer = LightSurfaceVar,
-    onSecondaryContainer = LightGreen,
+    secondaryContainer = LightRedContainer,
+    onSecondaryContainer = LightRedDim,
     tertiary = LightMuted,
     onTertiary = LightBg,
     background = LightBg,
@@ -56,7 +57,7 @@ private val LightColorScheme = lightColorScheme(
     onSurfaceVariant = LightMuted,
     outline = LightBorder,
     outlineVariant = LightBorder,
-    error = LightRed,
+    error = Color(0xFFd32f2f),
     onError = LightBg
 )
 
