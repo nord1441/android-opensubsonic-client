@@ -255,37 +255,34 @@ class AudioEffectManager @Inject constructor(
         try {
             crossfeedReverb?.let { reverb ->
                 if (enabled) {
-                    // Crossfeed: short decay simulating near-field speaker bleed.
-                    // level 0-100 maps to increasing reverb presence.
+                    // Crossfeed: aggressive channel blending with heavy reverb presence.
                     val t = level / 100f
 
-                    // Room level: how much original signal goes through the reverb
-                    // Range: -9000 (very quiet) to 0 (full). We use -4000 to -500.
-                    val roomLevel = (-4000 + (t * 3500).toInt()).toShort()
+                    // Room level: -1500 (min slider) to 0 (max slider) — very loud room
+                    val roomLevel = (-1500 + (t * 1500).toInt()).toShort()
 
-                    // Reverb level: the wet reverb output level
-                    // Range: -9000 to 0 (2000 max). We use -3000 to 0.
-                    val reverbLevel = (-3000 + (t * 3000).toInt()).toShort()
+                    // Reverb level: -1000 to 0 — strong wet signal for obvious blending
+                    val reverbLevel = (-1000 + (t * 1000).toInt()).toShort()
 
-                    // Short decay (100-400ms) for tight crossfeed, not washy reverb
-                    val decayTime = (100 + (t * 300).toInt())
+                    // Decay 200-800ms — noticeable tail even at low settings
+                    val decayTime = (200 + (t * 600).toInt())
 
-                    // High diffusion = more channel mixing (blending), 0-1000
-                    val diffusion = (700 + (t * 300).toInt()).toShort()
+                    // Max diffusion for maximum channel mixing, 0-1000
+                    val diffusion = (900 + (t * 100).toInt()).toShort()
 
-                    // Small room dimensions for intimate crossfeed feel
-                    val density = (800 + (t * 200).toInt()).toShort()
+                    // High density for thick blending
+                    val density = (900 + (t * 100).toInt()).toShort()
 
                     reverb.roomLevel = roomLevel
                     reverb.reverbLevel = reverbLevel
                     reverb.decayTime = decayTime
                     reverb.diffusion = diffusion
                     reverb.density = density
-                    // Short reflections for direct channel blending
-                    reverb.reflectionsLevel = (-1000 + (t * 800).toInt()).toShort()
-                    reverb.reflectionsDelay = 10 // ms, very short
-                    reverb.reverbDelay = 20 // ms
-                    reverb.decayHFRatio = 800.toShort() // slightly damped high freq
+                    // Loud early reflections for strong channel crosstalk
+                    reverb.reflectionsLevel = (-200 + (t * 200).toInt()).toShort()
+                    reverb.reflectionsDelay = 5 // ms, extremely short for direct bleed
+                    reverb.reverbDelay = 10 // ms, tight
+                    reverb.decayHFRatio = 900.toShort() // keep highs for clarity
 
                     reverb.enabled = true
                 } else {
@@ -314,34 +311,34 @@ class AudioEffectManager @Inject constructor(
         try {
             surroundReverb?.let { reverb ->
                 if (enabled) {
-                    // Surround: long decay + wide room for spacious immersive feel.
+                    // Surround: very aggressive spacious reverb — clearly audible effect.
                     val t = level / 100f
 
-                    // Room level: -3000 to -200 (louder = more present)
-                    val roomLevel = (-3000 + (t * 2800).toInt()).toShort()
+                    // Room level: -1000 to 0 — very present room sound
+                    val roomLevel = (-1000 + (t * 1000).toInt()).toShort()
 
-                    // Reverb level: -2000 to 0 (strong wet signal)
-                    val reverbLevel = (-2000 + (t * 2000).toInt()).toShort()
+                    // Reverb level: -500 to 0 — heavy wet signal, dramatic hall effect
+                    val reverbLevel = (-500 + (t * 500).toInt()).toShort()
 
-                    // Long decay (800ms-3000ms) for spacious hall feel
-                    val decayTime = (800 + (t * 2200).toInt())
+                    // Long decay 1500-5000ms for massive hall/cathedral feel
+                    val decayTime = (1500 + (t * 3500).toInt())
 
-                    // Wide diffusion for enveloping sound, 0-1000
-                    val diffusion = (600 + (t * 400).toInt()).toShort()
+                    // Max diffusion for fully enveloping sound, 0-1000
+                    val diffusion = (900 + (t * 100).toInt()).toShort()
 
-                    // High density for rich reverb texture
-                    val density = (600 + (t * 400).toInt()).toShort()
+                    // Max density for thick, lush reverb
+                    val density = (900 + (t * 100).toInt()).toShort()
 
                     reverb.roomLevel = roomLevel
                     reverb.reverbLevel = reverbLevel
                     reverb.decayTime = decayTime
                     reverb.diffusion = diffusion
                     reverb.density = density
-                    // Prominent early reflections for spatial cues
-                    reverb.reflectionsLevel = (-500 + (t * 400).toInt()).toShort()
-                    reverb.reflectionsDelay = (15 + (t * 25).toInt()) // 15-40ms
-                    reverb.reverbDelay = (30 + (t * 30).toInt()) // 30-60ms
-                    reverb.decayHFRatio = (500 + (t * 500).toInt()).toShort() // brighter at higher levels
+                    // Very loud early reflections for dramatic spatial cues
+                    reverb.reflectionsLevel = (-100 + (t * 100).toInt()).toShort()
+                    reverb.reflectionsDelay = (20 + (t * 40).toInt()) // 20-60ms
+                    reverb.reverbDelay = (40 + (t * 50).toInt()) // 40-90ms
+                    reverb.decayHFRatio = (700 + (t * 300).toInt()).toShort() // bright reverb tail
 
                     reverb.enabled = true
                 } else {

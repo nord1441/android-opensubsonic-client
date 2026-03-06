@@ -123,13 +123,11 @@ class StoragePreferences @Inject constructor(
         val internalDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
         locations.add(StorageLocation.INTERNAL to internalDir)
 
-        // Check for SD card
-        val externalDirs = context.getExternalFilesDirs(Environment.DIRECTORY_MUSIC)
-        for (dir in externalDirs) {
-            if (dir == null) continue
-            // Skip primary storage (internal)
-            if (Environment.isExternalStorageEmulated(dir)) continue
-            locations.add(StorageLocation.SD_CARD to dir)
+        // Check for SD card — use Music folder at SD card root
+        val sdCardRoot = getSDCardRoot()
+        if (sdCardRoot != null) {
+            val sdMusicDir = File(sdCardRoot, Environment.DIRECTORY_MUSIC)
+            locations.add(StorageLocation.SD_CARD to sdMusicDir)
         }
 
         return locations
@@ -137,6 +135,29 @@ class StoragePreferences @Inject constructor(
 
     fun hasSDCard(): Boolean {
         return getAvailableStorageLocations().any { it.first == StorageLocation.SD_CARD }
+    }
+
+    /**
+     * Extracts the SD card root path (e.g. /storage/xxxx-xxxx) from app-specific external dirs.
+     * The app-specific path is like /storage/xxxx-xxxx/Android/data/<package>/files/Music.
+     * We walk up from that to find the mount root before "Android/".
+     */
+    private fun getSDCardRoot(): File? {
+        val externalDirs = context.getExternalFilesDirs(null)
+        for (dir in externalDirs) {
+            if (dir == null) continue
+            if (Environment.isExternalStorageEmulated(dir)) continue
+            // dir = /storage/xxxx-xxxx/Android/data/<pkg>/files
+            // Walk up to find the path component before "Android"
+            var current: File? = dir
+            while (current != null) {
+                if (current.name == "Android") {
+                    return current.parentFile
+                }
+                current = current.parentFile
+            }
+        }
+        return null
     }
 
     /**
@@ -151,14 +172,8 @@ class StoragePreferences @Inject constructor(
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), SUBTUNE_DIR)
             }
             StorageLocation.SD_CARD -> {
-                val externalDirs = context.getExternalFilesDirs(Environment.DIRECTORY_MUSIC)
-                for (dir in externalDirs) {
-                    if (dir == null) continue
-                    if (!Environment.isExternalStorageEmulated(dir)) {
-                        return File(dir, SUBTUNE_DIR)
-                    }
-                }
-                null
+                val sdCardRoot = getSDCardRoot() ?: return null
+                File(File(sdCardRoot, Environment.DIRECTORY_MUSIC), SUBTUNE_DIR)
             }
         }
     }
