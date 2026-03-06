@@ -1,16 +1,18 @@
 package com.opensubsonic.client.service
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.opensubsonic.client.R
 import com.opensubsonic.client.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -22,9 +24,26 @@ class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
 
+    companion object {
+        private const val NOTIFICATION_CHANNEL_ID = "subtune_playback"
+        private const val NOTIFICATION_ID = 1
+    }
+
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+
+        // Create notification channel
+        val channel = NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            "Music Playback",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Music playback controls"
+            setShowBadge(false)
+        }
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(channel)
 
         val player = ExoPlayer.Builder(this)
             .setAudioAttributes(
@@ -49,6 +68,14 @@ class PlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(pendingIntent)
             .build()
+
+        // Configure media notification
+        val notificationProvider = DefaultMediaNotificationProvider.Builder(this)
+            .setChannelId(NOTIFICATION_CHANNEL_ID)
+            .setNotificationId(NOTIFICATION_ID)
+            .build()
+        notificationProvider.setSmallIcon(R.drawable.ic_notification)
+        setMediaNotificationProvider(notificationProvider)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {

@@ -16,6 +16,7 @@ import com.opensubsonic.client.data.model.PlaybackMode
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
 import com.opensubsonic.client.util.SubsonicUrlHelper
+import com.opensubsonic.client.widget.PlaybackWidgetProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -179,9 +180,20 @@ class PlayerController @Inject constructor(
             .build()
     }
 
+    private fun updateWidget() {
+        val state = _playerState.value
+        PlaybackWidgetProvider.updateWidget(
+            context,
+            state.currentSong?.title,
+            state.currentSong?.artist,
+            state.isPlaying
+        )
+    }
+
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
             _playerState.value = _playerState.value.copy(isPlaying = isPlaying)
+            updateWidget()
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -192,6 +204,7 @@ class PlayerController @Inject constructor(
                 currentSong = song,
                 currentIndex = index
             )
+            updateWidget()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
