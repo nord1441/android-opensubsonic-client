@@ -98,6 +98,18 @@ class MusicRepository @Inject constructor(
     // Songs
     suspend fun insertSongs(songs: List<Song>) = musicDao.insertSongs(songs)
 
+    // Direct DB inserts (for sync/bulk operations)
+    suspend fun insertAlbums(albums: List<Album>) = musicDao.insertAlbums(albums)
+    suspend fun insertPlaylists(playlists: List<Playlist>) = musicDao.insertPlaylists(playlists)
+
+    suspend fun updatePlaylistSongs(playlistId: String, songs: List<Song>) {
+        val playlistSongs = songs.mapIndexed { index, song ->
+            PlaylistSong(playlistId = playlistId, songId = song.id, sortOrder = index)
+        }
+        musicDao.deletePlaylistSongs(playlistId)
+        musicDao.insertPlaylistSongs(playlistSongs)
+    }
+
     // Downloads
     fun getDownloadedSongs(): Flow<List<Song>> = musicDao.getDownloadedSongs()
 

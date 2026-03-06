@@ -124,7 +124,7 @@ fun SubTuneApp(
 
     var activeServer by remember { mutableStateOf<ServerConfig?>(null) }
 
-    // Load active server and scan for existing downloads
+    // Load active server, scan downloads, and auto-sync with server
     LaunchedEffect(Unit) {
         activeServer = serverRepository.getActiveServer()
         activeServer?.let {
@@ -133,6 +133,8 @@ fun SubTuneApp(
         }
         // Scan for previously downloaded files on startup
         downloadManager.scanAndRemapDownloads()
+        // Auto-sync with server if online (updates tracks, playlists, M3U files)
+        activeServer?.let { downloadManager.syncWithServer(it) }
     }
 
     val showBottomBar = currentRoute in listOf(

@@ -87,9 +87,13 @@ class PlaylistsViewModel @Inject constructor(
         viewModelScope.launch {
             val s = server ?: return@launch
             try {
-                val (_, songs) = musicRepository.getPlaylistDetail(playlistId)
+                val (playlist, songs) = musicRepository.getPlaylistDetail(playlistId)
                 for (song in songs) {
                     downloadManager.downloadSong(song, s)
+                }
+                // Generate M3U playlist file
+                if (playlist != null) {
+                    downloadManager.generateM3uPlaylist(playlist, songs)
                 }
                 _cachedPlaylistIds.value = _cachedPlaylistIds.value + playlistId
             } catch (_: Exception) {}

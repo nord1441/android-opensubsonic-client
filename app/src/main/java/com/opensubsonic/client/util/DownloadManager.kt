@@ -7,9 +7,11 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.opensubsonic.client.api.SubsonicClient
+import com.opensubsonic.client.data.model.Playlist
 import com.opensubsonic.client.data.model.ServerConfig
 import com.opensubsonic.client.data.model.Song
 import com.opensubsonic.client.data.repository.MusicRepository
+import kotlinx.coroutines.flow.first
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,7 +35,8 @@ data class BulkDownloadState(
     val totalTracks: Int = 0,
     val completedTracks: Int = 0,
     val currentTrackName: String? = null,
-    val currentAlbumName: String? = null
+    val currentAlbumName: String? = null,
+    val phase: String = "downloading" // "downloading", "playlists", "syncing"
 )
 
 @Singleton
@@ -157,6 +160,15 @@ class DownloadManager @Inject constructor(
                         // Skip failed albums
                     }
                 }
+
+                // Phase 2: Cache all playlists with M3U files
+                _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                    phase = "playlists",
+                    completedTracks = completed,
+                    currentTrackName = null,
+                    currentAlbumName = null
+                )
+                cacheAllPlaylists(server)
 
                 _bulkDownloadState.value = BulkDownloadState(
                     isDownloading = false,
@@ -333,6 +345,180 @@ class DownloadManager @Inject constructor(
             }
         }
         return file.absolutePath
+    }
+
+    /**
+     * Cache all playlists: download songs and generate M3U files.
+     */
+    suspend fun cacheAllPlaylists(server: ServerConfig) {
+        withContext(Dispatchers.IO) {
+            try {
+                val playlists = subsonicClient.getPlaylists()
+                musicRepository.insertPlaylists(playlists)
+
+                for (playlist in playlists) {
+                    try {
+                        val (_, songs) = subsonicClient.getPlaylist(playlist.id)
+                        musicRepository.insertSongs(songs)
+                        musicRepository.updatePlaylistSongs(playlist.id, songs)
+
+                        _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                            currentAlbumName = playlist.name
+                        )
+
+                        for (song in songs) {
+                            _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                                currentTrackName = song.title
+                            )
+                            if (!isSongFileExists(song.id)) {
+                                downloadSong(song, server)
+                                _activeDownloads.value = _activeDownloads.value - song.id
+                            }
+                        }
+
+                        // Generate M3U file for this playlist
+                        generateM3uPlaylist(playlist, songs)
+                    } catch (_: Exception) {
+                        // Skip failed playlists
+                    }
+                }
+            } catch (_: Exception) {
+                // Playlist fetch failed (offline etc.)
+            }
+        }
+    }
+
+    /**
+     * Generate an M3U playlist file referencing local paths of downloaded songs.
+     */
+    suspend fun generateM3uPlaylist(playlist: Playlist, songs: List<Song>) {
+        val playlistDir = getPlaylistDir() ?: return
+        if (!playlistDir.exists()) playlistDir.mkdirs()
+
+        val safeName = playlist.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+        val m3uFile = File(playlistDir, "${safeName}.m3u")
+
+        m3uFile.bufferedWriter().use { writer ->
+            writer.write("#EXTM3U")
+            writer.newLine()
+
+            for (song in songs) {
+                val localPath = resolveLocalPath(song)
+                if (localPath != null) {
+                    writer.write("#EXTINF:${song.duration},${song.artist ?: "Unknown"} - ${song.title}")
+                    writer.newLine()
+                    writer.write(localPath)
+                    writer.newLine()
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolve the local filesystem path for a downloaded song.
+     * For content:// URIs, find the matching file on disk instead.
+     */
+    private fun resolveLocalPath(song: Song): String? {
+        // Check filesystem directories first
+        val internalDir = getInternalMusicDir()
+        val internalFile = findSongFileInDir(song.id, internalDir)
+        if (internalFile != null) return internalFile.absolutePath
+
+        val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+        if (sdDir != null) {
+            val sdFile = findSongFileInDir(song.id, sdDir)
+            if (sdFile != null) return sdFile.absolutePath
+        }
+
+        return null
+    }
+
+    private fun findSongFileInDir(songId: String, dir: File): File? {
+        if (!dir.exists()) return null
+        return dir.listFiles()?.firstOrNull { it.name.startsWith("${songId}__") }
+    }
+
+    private suspend fun getPlaylistDir(): File? {
+        val storageLocation = try {
+            storagePreferences.getStorageLocationSync()
+        } catch (_: Exception) {
+            StorageLocation.INTERNAL
+        }
+        val musicDir = if (storageLocation == StorageLocation.SD_CARD) {
+            storagePreferences.getMusicDir(StorageLocation.SD_CARD) ?: getInternalMusicDir()
+        } else {
+            getInternalMusicDir()
+        }
+        return File(musicDir, "Playlists")
+    }
+
+    /**
+     * Sync local data with server: update albums, songs, playlists, and regenerate M3U files.
+     * Only runs when server is reachable.
+     */
+    suspend fun syncWithServer(server: ServerConfig) {
+        withContext(Dispatchers.IO) {
+            try {
+                // Check connectivity
+                if (!subsonicClient.ping()) return@withContext
+
+                // Sync albums and songs
+                var offset = 0
+                while (true) {
+                    val batch = subsonicClient.getAlbumList(size = 500, offset = offset)
+                    if (batch.isEmpty()) break
+                    musicRepository.insertAlbums(batch)
+
+                    for (album in batch) {
+                        try {
+                            val (_, songs) = subsonicClient.getAlbum(album.id)
+                            musicRepository.insertSongs(songs)
+                        } catch (_: Exception) {}
+                    }
+
+                    offset += batch.size
+                    if (batch.size < 500) break
+                }
+
+                // Sync playlists and regenerate M3U files
+                val playlists = subsonicClient.getPlaylists()
+                musicRepository.insertPlaylists(playlists)
+
+                // Clean up M3U files for playlists that no longer exist on server
+                cleanupOrphanedM3u(playlists)
+
+                for (playlist in playlists) {
+                    try {
+                        val (_, songs) = subsonicClient.getPlaylist(playlist.id)
+                        musicRepository.insertSongs(songs)
+                        musicRepository.updatePlaylistSongs(playlist.id, songs)
+
+                        // Regenerate M3U with current song list
+                        generateM3uPlaylist(playlist, songs)
+                    } catch (_: Exception) {}
+                }
+
+                // Re-scan downloads to update local path mappings
+                scanAndRemapDownloads()
+            } catch (_: Exception) {
+                // Server unreachable, skip sync
+            }
+        }
+    }
+
+    private suspend fun cleanupOrphanedM3u(serverPlaylists: List<Playlist>) {
+        val playlistDir = getPlaylistDir() ?: return
+        if (!playlistDir.exists()) return
+
+        val validNames = serverPlaylists.map { playlist ->
+            playlist.name.replace(Regex("[/\\\\:*?\"<>|]"), "_") + ".m3u"
+        }.toSet()
+
+        playlistDir.listFiles()?.forEach { file ->
+            if (file.name.endsWith(".m3u") && file.name !in validNames) {
+                file.delete()
+            }
+        }
     }
 
     fun clearCompleted() {

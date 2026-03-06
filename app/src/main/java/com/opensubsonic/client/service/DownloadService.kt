@@ -71,9 +71,16 @@ class DownloadService : Service() {
                 val progressJob = launch {
                     downloadManager.bulkDownloadState.collect { state ->
                         if (state.isDownloading) {
-                            val text = "${state.completedTracks} / ${state.totalTracks} tracks"
+                            val title = when (state.phase) {
+                                "playlists" -> "Caching playlists"
+                                else -> "Downloading library"
+                            }
+                            val text = when (state.phase) {
+                                "playlists" -> state.currentAlbumName ?: "Processing playlists..."
+                                else -> "${state.completedTracks} / ${state.totalTracks} tracks"
+                            }
                             val detail = state.currentTrackName ?: ""
-                            updateNotification(text, detail, state.completedTracks, state.totalTracks)
+                            updateNotification(title, text, detail, state.completedTracks, state.totalTracks)
                         }
                     }
                 }
@@ -123,19 +130,19 @@ class DownloadService : Service() {
             .build()
     }
 
-    private fun updateNotification(text: String, detail: String, progress: Int, max: Int) {
+    private fun updateNotification(title: String, text: String, detail: String, progress: Int, max: Int) {
         val pendingIntent = PendingIntent.getActivity(
             this, 0,
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Downloading library")
+            .setContentTitle(title)
             .setContentText(text)
             .setSubText(detail)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setOngoing(true)
-            .setProgress(max, progress, false)
+            .setProgress(max, progress, max > 0)
             .setContentIntent(pendingIntent)
             .build()
         val nm = getSystemService(NotificationManager::class.java)
