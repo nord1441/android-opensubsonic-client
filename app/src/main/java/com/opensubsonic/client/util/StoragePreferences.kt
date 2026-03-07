@@ -35,6 +35,8 @@ enum class TranscodeBitrate(val value: Int, val label: String) {
     BITRATE_192(192, "192 kbps"),
     BITRATE_256(256, "256 kbps"),
     BITRATE_320(320, "320 kbps"),
+    BITRATE_450(450, "450 kbps"),
+    BITRATE_500(500, "500 kbps"),
     UNLIMITED(0, "Unlimited");
 }
 

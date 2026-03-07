@@ -56,8 +56,12 @@ class DownloadManager @Inject constructor(
     companion object {
         private const val SUBTUNE_DIR = "SubTune"
 
-        fun buildStableFileName(song: Song): String {
-            val suffix = song.suffix ?: "mp3"
+        fun buildStableFileName(song: Song, transcodedFormat: String? = null): String {
+            val suffix = if (transcodedFormat != null && transcodedFormat != "raw") {
+                transcodedFormat
+            } else {
+                song.suffix ?: "mp3"
+            }
             val artist = (song.artist ?: "Unknown").replace(Regex("[/\\\\:*?\"<>|]"), "_")
             val title = song.title.replace(Regex("[/\\\\:*?\"<>|]"), "_")
             // Prefix with song ID for re-mapping after reinstall
@@ -88,7 +92,23 @@ class DownloadManager @Inject constructor(
                 }
 
                 val body = response.body ?: return@withContext
-                val fileName = buildStableFileName(song)
+                // Use the actual transcoded format for the file extension
+                val actualFormat = dlFormat.apiValue
+                val fileName = buildStableFileName(song, actualFormat)
+                // Determine correct MIME type based on actual format
+                val transcodedSong = if (actualFormat != "raw") {
+                    val mimeType = when (actualFormat) {
+                        "mp3" -> "audio/mpeg"
+                        "ogg" -> "audio/ogg"
+                        "opus" -> "audio/opus"
+                        "aac" -> "audio/aac"
+                        "flac" -> "audio/flac"
+                        else -> song.contentType ?: "audio/mpeg"
+                    }
+                    song.copy(contentType = mimeType)
+                } else {
+                    song
+                }
                 val storageLocation = storagePreferences.getStorageLocationSync()
 
                 val localPath = if (storageLocation == StorageLocation.SD_CARD) {
@@ -96,7 +116,7 @@ class DownloadManager @Inject constructor(
                     if (sdDir != null) saveToDir(fileName, body.byteStream(), sdDir)
                     else saveToFile(fileName, body.byteStream())
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveWithMediaStore(fileName, song, body.byteStream())
+                    saveWithMediaStore(fileName, transcodedSong, body.byteStream())
                 } else {
                     saveToFile(fileName, body.byteStream())
                 }
