@@ -323,8 +323,82 @@ private fun TranscodeSection(
     onFormatChange: (TranscodeFormat) -> Unit,
     onBitrateChange: (TranscodeBitrate) -> Unit
 ) {
-    var formatExpanded by remember { mutableStateOf(false) }
-    var bitrateExpanded by remember { mutableStateOf(false) }
+    var showFormatDialog by remember { mutableStateOf(false) }
+    var showBitrateDialog by remember { mutableStateOf(false) }
+
+    if (showFormatDialog) {
+        AlertDialog(
+            onDismissRequest = { showFormatDialog = false },
+            title = { Text("FORMAT") },
+            text = {
+                Column {
+                    TranscodeFormat.entries.forEach { format ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onFormatChange(format)
+                                    showFormatDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = format == selectedFormat,
+                                onClick = {
+                                    onFormatChange(format)
+                                    showFormatDialog = false
+                                }
+                            )
+                            Text(
+                                text = format.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
+
+    if (showBitrateDialog) {
+        AlertDialog(
+            onDismissRequest = { showBitrateDialog = false },
+            title = { Text("MAX BITRATE") },
+            text = {
+                Column {
+                    TranscodeBitrate.entries.forEach { bitrate ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onBitrateChange(bitrate)
+                                    showBitrateDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = bitrate == selectedBitrate,
+                                onClick = {
+                                    onBitrateChange(bitrate)
+                                    showBitrateDialog = false
+                                }
+                            )
+                            Text(
+                                text = bitrate.label,
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {}
+        )
+    }
 
     Surface(
         modifier = Modifier
@@ -353,48 +427,27 @@ private fun TranscodeSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Box {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { formatExpanded = true },
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = MaterialTheme.shapes.small
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showFormatDialog = true },
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = selectedFormat.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            Icons.Filled.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = formatExpanded,
-                    onDismissRequest = { formatExpanded = false }
-                ) {
-                    TranscodeFormat.entries.forEach { format ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = format.label,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            },
-                            onClick = {
-                                onFormatChange(format)
-                                formatExpanded = false
-                            }
-                        )
-                    }
+                    Text(
+                        text = selectedFormat.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -407,55 +460,34 @@ private fun TranscodeSection(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Box {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = selectedFormat != TranscodeFormat.RAW) {
-                            bitrateExpanded = true
-                        },
-                    color = if (selectedFormat != TranscodeFormat.RAW)
-                        MaterialTheme.colorScheme.surface
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = selectedFormat != TranscodeFormat.RAW) {
+                        showBitrateDialog = true
+                    },
+                color = if (selectedFormat != TranscodeFormat.RAW)
+                    MaterialTheme.colorScheme.surface
+                else MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (selectedFormat == TranscodeFormat.RAW) "N/A" else selectedBitrate.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = if (selectedFormat != TranscodeFormat.RAW)
-                                MaterialTheme.colorScheme.onSurface
-                            else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Icon(
-                            Icons.Filled.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                DropdownMenu(
-                    expanded = bitrateExpanded,
-                    onDismissRequest = { bitrateExpanded = false }
-                ) {
-                    TranscodeBitrate.entries.forEach { bitrate ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = bitrate.label,
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            },
-                            onClick = {
-                                onBitrateChange(bitrate)
-                                bitrateExpanded = false
-                            }
-                        )
-                    }
+                    Text(
+                        text = if (selectedFormat == TranscodeFormat.RAW) "N/A" else selectedBitrate.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selectedFormat != TranscodeFormat.RAW)
+                            MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
