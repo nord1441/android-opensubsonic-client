@@ -99,3 +99,9 @@ enum class RepeatMode {
 enum class PlaybackMode {
     SEQUENTIAL, SHUFFLE, REPEAT_ONE, REPEAT_ALL
 }
+
+data class DownloadInfo(
+    val id: String,
+    val isDownloaded: Boolean,
+    val localPath: String?
+)
