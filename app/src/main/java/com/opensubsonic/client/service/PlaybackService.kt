@@ -8,19 +8,24 @@ import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.opensubsonic.client.R
 import com.opensubsonic.client.ui.MainActivity
 import dagger.hilt.android.AndroidEntryPoint
+import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class PlaybackService : MediaSessionService() {
 
     @Inject lateinit var audioEffectManager: AudioEffectManager
+    @Inject lateinit var okHttpClient: OkHttpClient
 
     private var mediaSession: MediaSession? = null
 
@@ -45,7 +50,12 @@ class PlaybackService : MediaSessionService() {
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(channel)
 
+        // DataSourceFactory: local files (content://, file://) + OkHttp for streaming
+        val httpDataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
+        val dataSourceFactory = DefaultDataSource.Factory(this, httpDataSourceFactory)
+
         val player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)

@@ -4,11 +4,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
+import androidx.core.net.toUri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import java.io.File
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import com.opensubsonic.client.data.db.MusicDao
@@ -172,13 +176,18 @@ class PlayerController @Inject constructor(
     }
 
     private fun Song.toMediaItem(server: ServerConfig?): MediaItem {
-        val streamUrl = if (isDownloaded && localPath != null) {
-            localPath
+        val mediaUri: Uri = if (isDownloaded && localPath != null) {
+            // Ensure proper URI: content:// stays as-is, file paths get file:// scheme
+            if (localPath.startsWith("content://")) {
+                localPath.toUri()
+            } else {
+                Uri.fromFile(File(localPath))
+            }
         } else if (server != null) {
             val (format, bitrate) = runBlocking {
                 storagePreferences.getStreamFormatSync() to storagePreferences.getStreamBitrateSync()
             }
-            SubsonicUrlHelper.getStreamUrl(server, id, format.apiValue, bitrate.value)
+            Uri.parse(SubsonicUrlHelper.getStreamUrl(server, id, format.apiValue, bitrate.value))
         } else {
             // No local path and no server - cannot play
             return MediaItem.Builder().setMediaId(id).build()
@@ -192,7 +201,7 @@ class PlayerController @Inject constructor(
 
         return MediaItem.Builder()
             .setMediaId(id)
-            .setUri(streamUrl)
+            .setUri(mediaUri)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(title)
@@ -240,6 +249,17 @@ class PlayerController @Inject constructor(
                 _playerState.value = _playerState.value.copy(
                     duration = ctrl.duration.coerceAtLeast(0)
                 )
+            }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            Log.e("PlayerController", "Playback error: ${error.message}", error)
+            // Skip to next track on error
+            val ctrl = controller ?: return
+            if (ctrl.hasNextMediaItem()) {
+                ctrl.seekToNext()
+                ctrl.prepare()
+                ctrl.play()
             }
         }
     }
