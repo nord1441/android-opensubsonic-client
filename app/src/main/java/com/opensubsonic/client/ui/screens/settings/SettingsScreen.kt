@@ -1,5 +1,3 @@
-@file:Suppress("DEPRECATION")
-
 package com.opensubsonic.client.ui.screens.settings
 
 import androidx.compose.foundation.clickable
@@ -175,30 +173,312 @@ fun SettingsScreen(
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-        // Streaming quality
-        item {
-            TranscodeSection(
-                title = "STREAMING QUALITY",
-                subtitle = "Transcode when streaming from server",
-                selectedFormat = streamFormat,
-                selectedBitrate = streamBitrate,
-                onFormatChange = onStreamFormatChange,
-                onBitrateChange = onStreamBitrateChange
-            )
+        // Streaming quality - inlined directly
+        item(key = "streaming_quality") {
+            var streamFormatExpanded by remember { mutableStateOf(false) }
+            var streamBitrateExpanded by remember { mutableStateOf(false) }
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "STREAMING QUALITY",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Transcode when streaming from server",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "FORMAT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (streamFormatExpanded) {
+                        Column {
+                            TranscodeFormat.values().forEach { format ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onStreamFormatChange(format)
+                                            streamFormatExpanded = false
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = format == streamFormat,
+                                        onClick = {
+                                            onStreamFormatChange(format)
+                                            streamFormatExpanded = false
+                                        }
+                                    )
+                                    Text(
+                                        text = format.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { streamFormatExpanded = true },
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = streamFormat.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "MAX BITRATE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (streamBitrateExpanded && streamFormat != TranscodeFormat.RAW) {
+                        Column {
+                            TranscodeBitrate.values().forEach { bitrate ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onStreamBitrateChange(bitrate)
+                                            streamBitrateExpanded = false
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = bitrate == streamBitrate,
+                                        onClick = {
+                                            onStreamBitrateChange(bitrate)
+                                            streamBitrateExpanded = false
+                                        }
+                                    )
+                                    Text(
+                                        text = bitrate.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = streamFormat != TranscodeFormat.RAW) {
+                                    streamBitrateExpanded = true
+                                },
+                            color = if (streamFormat != TranscodeFormat.RAW)
+                                MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (streamFormat == TranscodeFormat.RAW) "N/A" else streamBitrate.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (streamFormat != TranscodeFormat.RAW)
+                                        MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
 
-        // Download quality
-        item {
-            TranscodeSection(
-                title = "DOWNLOAD QUALITY",
-                subtitle = "Transcode when downloading from server",
-                selectedFormat = downloadFormat,
-                selectedBitrate = downloadBitrate,
-                onFormatChange = onDownloadFormatChange,
-                onBitrateChange = onDownloadBitrateChange
-            )
+        // Download quality - inlined directly
+        item(key = "download_quality") {
+            var dlFormatExpanded by remember { mutableStateOf(false) }
+            var dlBitrateExpanded by remember { mutableStateOf(false) }
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "DOWNLOAD QUALITY",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Transcode when downloading from server",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "FORMAT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (dlFormatExpanded) {
+                        Column {
+                            TranscodeFormat.values().forEach { format ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onDownloadFormatChange(format)
+                                            dlFormatExpanded = false
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = format == downloadFormat,
+                                        onClick = {
+                                            onDownloadFormatChange(format)
+                                            dlFormatExpanded = false
+                                        }
+                                    )
+                                    Text(
+                                        text = format.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { dlFormatExpanded = true },
+                            color = MaterialTheme.colorScheme.surface,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = downloadFormat.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "MAX BITRATE",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (dlBitrateExpanded && downloadFormat != TranscodeFormat.RAW) {
+                        Column {
+                            TranscodeBitrate.values().forEach { bitrate ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onDownloadBitrateChange(bitrate)
+                                            dlBitrateExpanded = false
+                                        }
+                                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    RadioButton(
+                                        selected = bitrate == downloadBitrate,
+                                        onClick = {
+                                            onDownloadBitrateChange(bitrate)
+                                            dlBitrateExpanded = false
+                                        }
+                                    )
+                                    Text(
+                                        text = bitrate.label,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(start = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = downloadFormat != TranscodeFormat.RAW) {
+                                    dlBitrateExpanded = true
+                                },
+                            color = if (downloadFormat != TranscodeFormat.RAW)
+                                MaterialTheme.colorScheme.surface
+                            else MaterialTheme.colorScheme.surfaceVariant,
+                            shape = MaterialTheme.shapes.small
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (downloadFormat == TranscodeFormat.RAW) "N/A" else downloadBitrate.label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (downloadFormat != TranscodeFormat.RAW)
+                                        MaterialTheme.colorScheme.onSurface
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    Icons.Filled.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item { Spacer(modifier = Modifier.height(8.dp)) }
@@ -313,185 +593,5 @@ private fun SettingsItem(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )
-    }
-}
-
-@Composable
-private fun TranscodeSection(
-    title: String,
-    subtitle: String,
-    selectedFormat: TranscodeFormat,
-    selectedBitrate: TranscodeBitrate,
-    onFormatChange: (TranscodeFormat) -> Unit,
-    onBitrateChange: (TranscodeBitrate) -> Unit
-) {
-    var showFormatDialog by remember { mutableStateOf(false) }
-    var showBitrateDialog by remember { mutableStateOf(false) }
-
-    if (showFormatDialog) {
-        AlertDialog(
-            onDismissRequest = { showFormatDialog = false },
-            title = { Text("FORMAT") },
-            text = {
-                Column {
-                    TranscodeFormat.entries.forEach { format ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onFormatChange(format)
-                                    showFormatDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = format == selectedFormat,
-                                onClick = {
-                                    onFormatChange(format)
-                                    showFormatDialog = false
-                                }
-                            )
-                            Text(
-                                text = format.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {}
-        )
-    }
-
-    if (showBitrateDialog) {
-        AlertDialog(
-            onDismissRequest = { showBitrateDialog = false },
-            title = { Text("MAX BITRATE") },
-            text = {
-                Column {
-                    TranscodeBitrate.entries.forEach { bitrate ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onBitrateChange(bitrate)
-                                    showBitrateDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = bitrate == selectedBitrate,
-                                onClick = {
-                                    onBitrateChange(bitrate)
-                                    showBitrateDialog = false
-                                }
-                            )
-                            Text(
-                                text = bitrate.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(start = 8.dp)
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {}
-        )
-    }
-
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Format selector
-            Text(
-                text = "FORMAT",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { showFormatDialog = true },
-                color = MaterialTheme.colorScheme.surface,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = selectedFormat.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Filled.ArrowDropDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Bitrate selector
-            Text(
-                text = "MAX BITRATE",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = selectedFormat != TranscodeFormat.RAW) {
-                        showBitrateDialog = true
-                    },
-                color = if (selectedFormat != TranscodeFormat.RAW)
-                    MaterialTheme.colorScheme.surface
-                else MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.small
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (selectedFormat == TranscodeFormat.RAW) "N/A" else selectedBitrate.label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = if (selectedFormat != TranscodeFormat.RAW)
-                            MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        Icons.Filled.ArrowDropDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
     }
 }
