@@ -67,7 +67,6 @@ class PlayerController @Inject constructor(
     }
 
     suspend fun playSongs(songs: List<Song>, startIndex: Int = 0) {
-        val server = serverConfig ?: return
         val ctrl = controller ?: return
 
         // Resolve local paths from DB for downloaded songs
@@ -80,17 +79,34 @@ class PlayerController @Inject constructor(
             }
         }
 
-        currentQueue = resolvedSongs
-        val mediaItems = resolvedSongs.map { song -> song.toMediaItem(server) }
+        // When offline (no server config), only play downloaded songs
+        val server = serverConfig
+        val playableSongs = if (server != null) {
+            resolvedSongs
+        } else {
+            resolvedSongs.filter { it.isDownloaded && it.localPath != null }
+        }
+        if (playableSongs.isEmpty()) return
 
-        ctrl.setMediaItems(mediaItems, startIndex, 0)
+        // Adjust startIndex for filtered list
+        val adjustedIndex = if (server != null) {
+            startIndex
+        } else {
+            val targetSong = resolvedSongs.getOrNull(startIndex)
+            playableSongs.indexOf(targetSong).coerceAtLeast(0)
+        }
+
+        currentQueue = playableSongs
+        val mediaItems = playableSongs.map { song -> song.toMediaItem(server) }
+
+        ctrl.setMediaItems(mediaItems, adjustedIndex, 0)
         ctrl.prepare()
         ctrl.play()
 
         _playerState.value = _playerState.value.copy(
-            queue = resolvedSongs,
-            currentIndex = startIndex,
-            currentSong = resolvedSongs.getOrNull(startIndex)
+            queue = playableSongs,
+            currentIndex = adjustedIndex,
+            currentSong = playableSongs.getOrNull(adjustedIndex)
         )
     }
 
@@ -155,18 +171,23 @@ class PlayerController @Inject constructor(
         controllerFuture = null
     }
 
-    private fun Song.toMediaItem(server: ServerConfig): MediaItem {
+    private fun Song.toMediaItem(server: ServerConfig?): MediaItem {
         val streamUrl = if (isDownloaded && localPath != null) {
             localPath
-        } else {
+        } else if (server != null) {
             val (format, bitrate) = runBlocking {
                 storagePreferences.getStreamFormatSync() to storagePreferences.getStreamBitrateSync()
             }
             SubsonicUrlHelper.getStreamUrl(server, id, format.apiValue, bitrate.value)
+        } else {
+            // No local path and no server - cannot play
+            return MediaItem.Builder().setMediaId(id).build()
         }
 
-        val artworkUri = coverArt?.let {
-            Uri.parse(SubsonicUrlHelper.getCoverArtUrl(server, it))
+        val artworkUri = if (server != null) {
+            coverArt?.let { Uri.parse(SubsonicUrlHelper.getCoverArtUrl(server, it)) }
+        } else {
+            null
         }
 
         return MediaItem.Builder()
