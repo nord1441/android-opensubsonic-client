@@ -133,9 +133,11 @@ fun SettingsScreen(
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = if (bulkDownloadState.totalTracks > 0) {
-                                bulkDownloadState.completedTracks.toFloat() / bulkDownloadState.totalTracks
-                            } else 0f,
+                            progress = {
+                                if (bulkDownloadState.totalTracks > 0) {
+                                    bulkDownloadState.completedTracks.toFloat() / bulkDownloadState.totalTracks
+                                } else 0f
+                            },
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.primary
                         )
