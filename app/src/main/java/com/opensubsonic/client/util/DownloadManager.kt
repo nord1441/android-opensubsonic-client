@@ -53,6 +53,9 @@ class DownloadManager @Inject constructor(
     private val _bulkDownloadState = MutableStateFlow(BulkDownloadState())
     val bulkDownloadState: StateFlow<BulkDownloadState> = _bulkDownloadState
 
+    // In-memory cache of songId -> filePath to avoid repeated listFiles() on SD card
+    private val fileCache = mutableMapOf<String, String>()
+
     companion object {
         private const val SUBTUNE_DIR = "SubTune"
 
@@ -122,6 +125,7 @@ class DownloadManager @Inject constructor(
                 }
 
                 if (localPath != null) {
+                    fileCache[song.id] = localPath
                     musicRepository.markSongAsDownloaded(song.id, localPath)
                     _activeDownloads.value = _activeDownloads.value + (song.id to DownloadProgress(song.id, 1f, isComplete = true))
                 }
@@ -136,6 +140,8 @@ class DownloadManager @Inject constructor(
     suspend fun downloadAllAlbums(server: ServerConfig) {
         withContext(Dispatchers.IO) {
             try {
+                // Build file cache once before bulk download to avoid repeated listFiles()
+                buildFileCache()
                 var offset = 0
                 val allAlbums = mutableListOf<com.opensubsonic.client.data.model.Album>()
                 while (true) {
@@ -204,40 +210,66 @@ class DownloadManager @Inject constructor(
     }
 
     private fun isSongFileExists(songId: String): Boolean {
-        // Check MediaStore (internal storage, API 29+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && isSongFileExistsMediaStore(songId)) {
-            return true
-        }
-        // Check internal filesystem
-        if (isSongFileExistsInDir(songId, getInternalMusicDir())) {
-            return true
-        }
-        // Check SD card
-        val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
-        if (sdDir != null && isSongFileExistsInDir(songId, sdDir)) {
-            return true
-        }
+        // Check in-memory cache first (populated by buildFileCache/scanAndRemapDownloads)
+        if (fileCache.containsKey(songId)) return true
+        // Fallback: check DB download status
         return false
     }
 
-    private fun isSongFileExistsMediaStore(songId: String): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return false
+    /**
+     * Build in-memory file cache from all storage locations.
+     * Call once before bulk operations to avoid repeated listFiles().
+     */
+    private fun buildFileCache() {
+        fileCache.clear()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            scanMediaStoreToCache()
+        } else {
+            scanDirToCache(getInternalMusicDir())
+        }
+        val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+        if (sdDir != null) {
+            scanDirToCache(sdDir)
+        }
+    }
+
+    private fun scanMediaStoreToCache() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val resolver = context.contentResolver
-        val projection = arrayOf(MediaStore.Audio.Media._ID)
-        val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ? AND ${MediaStore.Audio.Media.DISPLAY_NAME} LIKE ?"
-        val selectionArgs = arrayOf("%$SUBTUNE_DIR%", "${songId}__%")
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.DISPLAY_NAME
+        )
+        val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
+        val selectionArgs = arrayOf("%$SUBTUNE_DIR%")
         resolver.query(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
             projection, selection, selectionArgs, null
         )?.use { cursor ->
-            return cursor.moveToFirst()
+            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            while (cursor.moveToNext()) {
+                val mediaId = cursor.getLong(idCol)
+                val displayName = cursor.getString(nameCol) ?: continue
+                val songId = displayName.substringBefore("__", "")
+                if (songId.isNotEmpty()) {
+                    val uri = ContentUris.withAppendedId(
+                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
+                    )
+                    fileCache[songId] = uri.toString()
+                }
+            }
         }
-        return false
     }
 
-    private fun isSongFileExistsInDir(songId: String, dir: File): Boolean {
-        if (!dir.exists()) return false
-        return dir.listFiles()?.any { it.name.startsWith("${songId}__") } == true
+    private fun scanDirToCache(dir: File) {
+        if (!dir.exists()) return
+        dir.listFiles()?.forEach { file ->
+            val songId = file.name.substringBefore("__", "")
+            if (songId.isNotEmpty()) {
+                fileCache[songId] = file.absolutePath
+            }
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -245,83 +277,13 @@ class DownloadManager @Inject constructor(
         return File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC), SUBTUNE_DIR)
     }
 
-    private fun isFileAccessible(path: String): Boolean {
-        return try {
-            if (path.startsWith("content://")) {
-                context.contentResolver.openInputStream(android.net.Uri.parse(path))?.close()
-                true
-            } else {
-                File(path).exists()
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
-
     suspend fun scanAndRemapDownloads() {
         withContext(Dispatchers.IO) {
-            val entries = mutableMapOf<String, String>()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                scanMediaStore(entries)
-            } else {
-                scanDirectory(getInternalMusicDir(), entries)
-            }
-            // Also scan SD card directory
-            val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
-            if (sdDir != null) {
-                scanDirectory(sdDir, entries)
-            }
-            // Single batch DB update
-            if (entries.isNotEmpty()) {
-                musicRepository.markSongsAsDownloadedBatch(entries)
-            }
-        }
-    }
-
-    private fun scanMediaStore(entries: MutableMap<String, String>) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
-
-        val resolver = context.contentResolver
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.DISPLAY_NAME,
-            MediaStore.Audio.Media.RELATIVE_PATH
-        )
-        val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
-        val selectionArgs = arrayOf("%$SUBTUNE_DIR%")
-
-        resolver.query(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            selectionArgs,
-            null
-        )?.use { cursor ->
-            val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-            val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-
-            while (cursor.moveToNext()) {
-                val mediaId = cursor.getLong(idCol)
-                val displayName = cursor.getString(nameCol) ?: continue
-
-                val songId = displayName.substringBefore("__", "")
-                if (songId.isNotEmpty()) {
-                    val uri = ContentUris.withAppendedId(
-                        MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
-                    )
-                    entries[songId] = uri.toString()
-                }
-            }
-        }
-    }
-
-    private fun scanDirectory(musicDir: File, entries: MutableMap<String, String>) {
-        if (!musicDir.exists()) return
-
-        musicDir.listFiles()?.forEach { file ->
-            val songId = file.name.substringBefore("__", "")
-            if (songId.isNotEmpty()) {
-                entries[songId] = file.absolutePath
+            // Build cache once, reuse for both DB update and isSongFileExists
+            buildFileCache()
+            // Single batch DB update using cached data
+            if (fileCache.isNotEmpty()) {
+                musicRepository.markSongsAsDownloadedBatch(fileCache.toMap())
             }
         }
     }
@@ -442,26 +404,26 @@ class DownloadManager @Inject constructor(
 
     /**
      * Resolve the local filesystem path for a downloaded song.
-     * For content:// URIs, find the matching file on disk instead.
+     * Uses in-memory cache to avoid repeated filesystem access.
      */
     private fun resolveLocalPath(song: Song): String? {
-        // Check filesystem directories first
+        val cached = fileCache[song.id]
+        if (cached != null && !cached.startsWith("content://")) return cached
+        // For content:// URIs, try to find filesystem path
         val internalDir = getInternalMusicDir()
-        val internalFile = findSongFileInDir(song.id, internalDir)
+        val internalFile = File(internalDir, "${song.id}__").let { prefix ->
+            internalDir.takeIf { it.exists() }?.listFiles()?.firstOrNull {
+                it.name.startsWith("${song.id}__")
+            }
+        }
         if (internalFile != null) return internalFile.absolutePath
 
         val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
-        if (sdDir != null) {
-            val sdFile = findSongFileInDir(song.id, sdDir)
+        if (sdDir != null && sdDir.exists()) {
+            val sdFile = sdDir.listFiles()?.firstOrNull { it.name.startsWith("${song.id}__") }
             if (sdFile != null) return sdFile.absolutePath
         }
-
         return null
-    }
-
-    private fun findSongFileInDir(songId: String, dir: File): File? {
-        if (!dir.exists()) return null
-        return dir.listFiles()?.firstOrNull { it.name.startsWith("${songId}__") }
     }
 
     private suspend fun getPlaylistDir(): File? {
