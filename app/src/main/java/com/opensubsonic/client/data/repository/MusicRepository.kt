@@ -117,6 +117,10 @@ class MusicRepository @Inject constructor(
         musicDao.markAsDownloaded(songId, localPath)
     }
 
+    suspend fun markSongsAsDownloadedBatch(entries: Map<String, String>) {
+        musicDao.markAsDownloadedBatch(entries)
+    }
+
     suspend fun getSong(id: String): Song? = musicDao.getSong(id)
 
     suspend fun getCachedAlbum(id: String): Album? = musicDao.getAlbum(id)

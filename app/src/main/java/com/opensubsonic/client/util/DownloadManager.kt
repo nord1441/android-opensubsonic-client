@@ -260,20 +260,25 @@ class DownloadManager @Inject constructor(
 
     suspend fun scanAndRemapDownloads() {
         withContext(Dispatchers.IO) {
+            val entries = mutableMapOf<String, String>()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                scanMediaStore()
+                scanMediaStore(entries)
             } else {
-                scanDirectory(getInternalMusicDir())
+                scanDirectory(getInternalMusicDir(), entries)
             }
             // Also scan SD card directory
             val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
             if (sdDir != null) {
-                scanDirectory(sdDir)
+                scanDirectory(sdDir, entries)
+            }
+            // Single batch DB update
+            if (entries.isNotEmpty()) {
+                musicRepository.markSongsAsDownloadedBatch(entries)
             }
         }
     }
 
-    private suspend fun scanMediaStore() {
+    private fun scanMediaStore(entries: MutableMap<String, String>) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
 
         val resolver = context.contentResolver
@@ -299,25 +304,24 @@ class DownloadManager @Inject constructor(
                 val mediaId = cursor.getLong(idCol)
                 val displayName = cursor.getString(nameCol) ?: continue
 
-                // Extract song ID from filename: {songId}__{artist} - {title}.{ext}
                 val songId = displayName.substringBefore("__", "")
                 if (songId.isNotEmpty()) {
                     val uri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
                     )
-                    musicRepository.markSongAsDownloaded(songId, uri.toString())
+                    entries[songId] = uri.toString()
                 }
             }
         }
     }
 
-    private suspend fun scanDirectory(musicDir: File) {
+    private fun scanDirectory(musicDir: File, entries: MutableMap<String, String>) {
         if (!musicDir.exists()) return
 
         musicDir.listFiles()?.forEach { file ->
             val songId = file.name.substringBefore("__", "")
             if (songId.isNotEmpty()) {
-                musicRepository.markSongAsDownloaded(songId, file.absolutePath)
+                entries[songId] = file.absolutePath
             }
         }
     }

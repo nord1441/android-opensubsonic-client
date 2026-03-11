@@ -88,6 +88,16 @@ abstract class MusicDao {
     @Query("UPDATE songs SET isDownloaded = 1, localPath = :localPath WHERE id = :songId")
     abstract suspend fun markAsDownloaded(songId: String, localPath: String)
 
+    /**
+     * Batch mark multiple songs as downloaded in a single transaction.
+     */
+    @Transaction
+    open suspend fun markAsDownloadedBatch(entries: Map<String, String>) {
+        for ((songId, localPath) in entries) {
+            markAsDownloaded(songId, localPath)
+        }
+    }
+
     @Query("DELETE FROM songs")
     abstract suspend fun deleteAllSongs()
 

@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -160,17 +161,20 @@ fun SubTuneApp(
     val scope = rememberCoroutineScope()
 
     var activeServer by remember { mutableStateOf<ServerConfig?>(null) }
+    var isInitializing by remember { mutableStateOf(true) }
 
-    // Load active server, scan downloads, and auto-sync with server
+    // Load active server and scan downloads (fast, batched)
     LaunchedEffect(Unit) {
         activeServer = serverRepository.getActiveServer()
         activeServer?.let {
             serverConfigHolder.update(it.url, it.username, it.password)
             playerController.setServer(it)
         }
-        // Scan for previously downloaded files on startup
+        // Scan for previously downloaded files on startup (batched, fast)
         downloadManager.scanAndRemapDownloads()
-        // Auto-sync with server if online (updates tracks, playlists, M3U files)
+        isInitializing = false
+
+        // Auto-sync with server in background (slow, non-blocking)
         activeServer?.let { downloadManager.syncWithServer(it) }
     }
 
@@ -250,6 +254,28 @@ fun SubTuneApp(
             }
         }
     ) { paddingValues ->
+        if (isInitializing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Loading library...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
         NavHost(
             navController = navController,
             startDestination = if (activeServer != null) Screen.Home.route else Screen.Login.route,
