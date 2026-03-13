@@ -16,26 +16,26 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = TermRed,
-    onPrimary = TermBlack,
-    primaryContainer = TermRedContainer,
-    onPrimaryContainer = TermRed,
-    secondary = TermRedDim,
-    onSecondary = TermFg,
-    secondaryContainer = TermRedContainer,
-    onSecondaryContainer = TermRedDim,
-    tertiary = TermMagenta,
-    onTertiary = TermBlack,
-    background = TermBlack,
-    onBackground = TermFg,
-    surface = TermDarkBg,
-    onSurface = TermFg,
-    surfaceVariant = TermSurfaceDark,
-    onSurfaceVariant = TermSubtle,
-    outline = TermBorder,
-    outlineVariant = TermBorder,
-    error = TermOrange,
-    onError = TermBlack
+    primary = DarkRed,
+    onPrimary = DarkBlack,
+    primaryContainer = DarkRedContainer,
+    onPrimaryContainer = DarkRed,
+    secondary = DarkRedDim,
+    onSecondary = DarkFg,
+    secondaryContainer = DarkRedContainer,
+    onSecondaryContainer = DarkRedDim,
+    tertiary = DarkMagenta,
+    onTertiary = DarkBlack,
+    background = DarkBlack,
+    onBackground = DarkFg,
+    surface = DarkBg,
+    onSurface = DarkFg,
+    surfaceVariant = DarkSurface,
+    onSurfaceVariant = DarkSubtle,
+    outline = DarkBorder,
+    outlineVariant = DarkBorder,
+    error = DarkOrange,
+    onError = DarkBlack
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -61,13 +61,13 @@ private val LightColorScheme = lightColorScheme(
     onError = LightBg
 )
 
-// Sharp rectangular shapes - no rounded corners (tiling WM aesthetic)
-private val TerminalShapes = Shapes(
-    extraSmall = RoundedCornerShape(0.dp),
-    small = RoundedCornerShape(0.dp),
-    medium = RoundedCornerShape(0.dp),
-    large = RoundedCornerShape(0.dp),
-    extraLarge = RoundedCornerShape(0.dp)
+// Swiss Modern shapes — clean with subtle rounding
+private val SwissShapes = Shapes(
+    extraSmall = RoundedCornerShape(2.dp),
+    small = RoundedCornerShape(4.dp),
+    medium = RoundedCornerShape(6.dp),
+    large = RoundedCornerShape(8.dp),
+    extraLarge = RoundedCornerShape(12.dp)
 )
 
 @Composable
@@ -93,7 +93,7 @@ fun SubTuneTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = SubTuneTypography,
-        shapes = TerminalShapes,
+        shapes = SwissShapes,
         content = content
     )
 }

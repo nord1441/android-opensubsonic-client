@@ -13,7 +13,7 @@ A minimal Android music streaming client for Subsonic/OpenSubsonic compatible se
 
 ## Design
 
-Minimal UI inspired by Teenage Engineering and Nothing. Black & white base with red accent color. Uses the Doto dot font from Google Fonts.
+Swiss Modern design. Black & white base with red accent color. Inter typeface via Google Fonts.
 
 ## Tech Stack
 

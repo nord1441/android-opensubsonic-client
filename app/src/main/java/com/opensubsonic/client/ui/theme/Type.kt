@@ -15,103 +15,104 @@ val provider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-val JetBrainsMonoFont = GoogleFont("JetBrains Mono")
+val InterFont = GoogleFont("Inter")
 
-val TerminalFontFamily = FontFamily(
-    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Light),
-    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Normal),
-    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Medium),
-    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.SemiBold),
-    Font(googleFont = JetBrainsMonoFont, fontProvider = provider, weight = FontWeight.Bold),
+val SwissFontFamily = FontFamily(
+    Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.Light),
+    Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.Normal),
+    Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.Medium),
+    Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.SemiBold),
+    Font(googleFont = InterFont, fontProvider = provider, weight = FontWeight.Bold),
 )
 
 val SubTuneTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 34.sp,
-        letterSpacing = (-0.5).sp
+        fontSize = 36.sp,
+        letterSpacing = (-1.0).sp
     ),
     displayMedium = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.5).sp
     ),
     displaySmall = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 24.sp
+        fontSize = 24.sp,
+        letterSpacing = (-0.25).sp
     ),
     headlineLarge = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 22.sp,
-        letterSpacing = 0.sp
+        letterSpacing = (-0.25).sp
     ),
     headlineMedium = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 18.sp,
         letterSpacing = 0.sp
     ),
     headlineSmall = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         letterSpacing = 0.sp
     ),
     titleLarge = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 16.sp,
         letterSpacing = 0.sp
     ),
     titleMedium = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.1.sp
     ),
     titleSmall = TextStyle(
-        fontFamily = TerminalFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = SwissFontFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.1.sp
     ),
     bodyLarge = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 14.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.15.sp
     ),
     bodyMedium = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 12.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.15.sp
     ),
     bodySmall = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Normal,
         fontSize = 11.sp,
-        letterSpacing = 0.sp
+        letterSpacing = 0.2.sp
     ),
     labelLarge = TextStyle(
-        fontFamily = TerminalFontFamily,
+        fontFamily = SwissFontFamily,
         fontWeight = FontWeight.Medium,
         fontSize = 12.sp,
         letterSpacing = 0.5.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = TerminalFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = SwissFontFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 11.sp,
         letterSpacing = 0.5.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = TerminalFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = SwissFontFamily,
+        fontWeight = FontWeight.Medium,
         fontSize = 10.sp,
         letterSpacing = 0.5.sp
     )
