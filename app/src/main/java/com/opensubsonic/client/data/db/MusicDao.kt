@@ -91,6 +91,9 @@ abstract class MusicDao {
     @Query("UPDATE songs SET isDownloaded = 0, localPath = NULL WHERE id = :songId")
     abstract suspend fun markAsNotDownloaded(songId: String)
 
+    @Query("UPDATE songs SET isDownloaded = 0, localPath = NULL WHERE isDownloaded = 1")
+    abstract suspend fun clearAllDownloadStatus()
+
     /**
      * Batch mark multiple songs as downloaded in a single transaction.
      */

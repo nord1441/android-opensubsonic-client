@@ -121,6 +121,10 @@ class MusicRepository @Inject constructor(
         musicDao.markAsNotDownloaded(songId)
     }
 
+    suspend fun clearAllDownloadStatus() {
+        musicDao.clearAllDownloadStatus()
+    }
+
     suspend fun markSongsAsDownloadedBatch(entries: Map<String, String>) {
         musicDao.markAsDownloadedBatch(entries)
     }

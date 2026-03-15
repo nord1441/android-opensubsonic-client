@@ -367,7 +367,10 @@ fun SubTuneApp(
                     storageLocation = currentStorageLocation,
                     hasSDCard = hasSDCard,
                     onStorageLocationChange = { location ->
-                        scope.launch { storagePreferences.setStorageLocation(location) }
+                        scope.launch {
+                            storagePreferences.setStorageLocation(location)
+                            musicRepository.clearAllDownloadStatus()
+                        }
                     },
                     onDownloadsClick = { navController.navigate(Screen.Downloads.route) },
                     onSoundEffectsClick = { navController.navigate(Screen.SoundEffects.route) },
