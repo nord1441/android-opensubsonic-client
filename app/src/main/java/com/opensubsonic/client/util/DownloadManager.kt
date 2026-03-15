@@ -17,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -52,6 +53,9 @@ class DownloadManager @Inject constructor(
 
     private val _bulkDownloadState = MutableStateFlow(BulkDownloadState())
     val bulkDownloadState: StateFlow<BulkDownloadState> = _bulkDownloadState
+
+    // Cancellation flag for bulk downloads
+    private val cancelRequested = AtomicBoolean(false)
 
     // In-memory cache of songId -> filePath to avoid repeated listFiles() on SD card
     private val fileCache = mutableMapOf<String, String>()
@@ -139,7 +143,12 @@ class DownloadManager @Inject constructor(
         }
     }
 
+    fun cancelBulkDownload() {
+        cancelRequested.set(true)
+    }
+
     suspend fun downloadAllAlbums(server: ServerConfig) {
+        cancelRequested.set(false)
         withContext(Dispatchers.IO) {
             try {
                 // Build file cache once before bulk download to avoid repeated listFiles()
@@ -147,6 +156,7 @@ class DownloadManager @Inject constructor(
                 var offset = 0
                 val allAlbums = mutableListOf<com.opensubsonic.client.data.model.Album>()
                 while (true) {
+                    if (cancelRequested.get()) break
                     val batch = subsonicClient.getAlbumList(size = 500, offset = offset)
                     if (batch.isEmpty()) break
                     allAlbums.addAll(batch)
@@ -164,11 +174,14 @@ class DownloadManager @Inject constructor(
 
                 var completed = 0
                 for (album in allAlbums) {
+                    if (cancelRequested.get()) break
                     try {
                         val (_, songs) = subsonicClient.getAlbum(album.id)
                         musicRepository.insertSongs(songs)
 
                         for (song in songs) {
+                            if (cancelRequested.get()) break
+
                             _bulkDownloadState.value = _bulkDownloadState.value.copy(
                                 completedTracks = completed,
                                 currentTrackName = song.title,
@@ -191,14 +204,16 @@ class DownloadManager @Inject constructor(
                     }
                 }
 
-                // Phase 2: Cache all playlists with M3U files
-                _bulkDownloadState.value = _bulkDownloadState.value.copy(
-                    phase = "playlists",
-                    completedTracks = completed,
-                    currentTrackName = null,
-                    currentAlbumName = null
-                )
-                cacheAllPlaylists(server)
+                if (!cancelRequested.get()) {
+                    // Phase 2: Cache all playlists with M3U files
+                    _bulkDownloadState.value = _bulkDownloadState.value.copy(
+                        phase = "playlists",
+                        completedTracks = completed,
+                        currentTrackName = null,
+                        currentAlbumName = null
+                    )
+                    cacheAllPlaylists(server)
+                }
 
                 _bulkDownloadState.value = BulkDownloadState(
                     isDownloading = false,
@@ -553,6 +568,109 @@ class DownloadManager @Inject constructor(
             if (file.name.endsWith(".m3u") && file.name !in validNames) {
                 file.delete()
             }
+        }
+    }
+
+    /**
+     * Find and remove duplicate downloaded files.
+     * Keeps the newest file per content key (artist - title), deletes older duplicates.
+     * Returns the number of duplicates removed.
+     */
+    suspend fun removeDuplicateDownloads(): Int {
+        return withContext(Dispatchers.IO) {
+            // content key -> list of (filePath or URI, songId, lastModified)
+            data class FileEntry(val path: String, val songId: String, val lastModified: Long)
+            val contentMap = mutableMapOf<String, MutableList<FileEntry>>()
+
+            // Scan filesystem
+            fun scanDir(dir: File) {
+                if (!dir.exists()) return
+                dir.listFiles()?.forEach { file ->
+                    val songId = file.name.substringBefore("__", "")
+                    val contentPart = file.name.substringAfter("__", "")
+                    if (songId.isNotEmpty() && contentPart.isNotEmpty()) {
+                        val key = contentPart.substringBeforeLast(".").lowercase()
+                        contentMap.getOrPut(key) { mutableListOf() }
+                            .add(FileEntry(file.absolutePath, songId, file.lastModified()))
+                    }
+                }
+            }
+
+            // Scan MediaStore
+            fun scanMediaStore(): Map<String, Pair<Long, Long>> {
+                // displayName -> (mediaStoreId, dateModified)
+                val mediaEntries = mutableMapOf<String, Pair<Long, Long>>()
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return mediaEntries
+                val resolver = context.contentResolver
+                val projection = arrayOf(
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.DISPLAY_NAME,
+                    MediaStore.Audio.Media.DATE_MODIFIED
+                )
+                val selection = "${MediaStore.Audio.Media.RELATIVE_PATH} LIKE ?"
+                val selectionArgs = arrayOf("%$SUBTUNE_DIR%")
+                resolver.query(
+                    MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                    projection, selection, selectionArgs, null
+                )?.use { cursor ->
+                    val idCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                    val nameCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                    val dateCol = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+                    while (cursor.moveToNext()) {
+                        val mediaId = cursor.getLong(idCol)
+                        val displayName = cursor.getString(nameCol) ?: continue
+                        val dateModified = cursor.getLong(dateCol)
+                        val songId = displayName.substringBefore("__", "")
+                        val contentPart = displayName.substringAfter("__", "")
+                        if (songId.isNotEmpty() && contentPart.isNotEmpty()) {
+                            val key = contentPart.substringBeforeLast(".").lowercase()
+                            val uri = ContentUris.withAppendedId(
+                                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
+                            )
+                            contentMap.getOrPut(key) { mutableListOf() }
+                                .add(FileEntry(uri.toString(), songId, dateModified))
+                            mediaEntries[displayName] = Pair(mediaId, dateModified)
+                        }
+                    }
+                }
+                return mediaEntries
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                scanMediaStore()
+            } else {
+                scanDir(getInternalMusicDir())
+            }
+            val sdDir = storagePreferences.getMusicDir(StorageLocation.SD_CARD)
+            if (sdDir != null) scanDir(sdDir)
+
+            var removedCount = 0
+            val resolver = context.contentResolver
+
+            for ((_, entries) in contentMap) {
+                if (entries.size <= 1) continue
+                // Keep the newest, delete the rest
+                val sorted = entries.sortedByDescending { it.lastModified }
+                val toRemove = sorted.drop(1)
+                for (entry in toRemove) {
+                    if (entry.path.startsWith("content://")) {
+                        try {
+                            val uri = android.net.Uri.parse(entry.path)
+                            resolver.delete(uri, null, null)
+                            removedCount++
+                        } catch (_: Exception) {}
+                    } else {
+                        val file = File(entry.path)
+                        if (file.delete()) removedCount++
+                    }
+                    // Clear DB download status for removed duplicate
+                    musicRepository.markSongAsNotDownloaded(entry.songId)
+                }
+            }
+
+            // Rebuild cache after cleanup
+            buildFileCache()
+            removedCount
         }
     }
 

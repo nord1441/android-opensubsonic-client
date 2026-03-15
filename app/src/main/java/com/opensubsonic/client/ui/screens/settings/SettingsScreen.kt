@@ -29,6 +29,8 @@ fun SettingsScreen(
     onDownloadsClick: () -> Unit,
     onSoundEffectsClick: () -> Unit,
     onDownloadAllAlbums: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onRemoveDuplicates: () -> Unit,
     onScanDownloads: () -> Unit,
     streamFormat: TranscodeFormat,
     streamBitrate: TranscodeBitrate,
@@ -139,6 +141,25 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             color = MaterialTheme.colorScheme.primary
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        OutlinedButton(
+                            onClick = onCancelDownload,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Icon(
+                                Icons.Filled.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "CANCEL",
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
                     }
                 }
             } else {
@@ -158,6 +179,16 @@ fun SettingsScreen(
                 title = "SCAN DOWNLOADS",
                 subtitle = "Re-link previously downloaded files",
                 onClick = onScanDownloads
+            )
+        }
+
+        // Remove duplicate downloads
+        item {
+            SettingsItem(
+                icon = Icons.Filled.DeleteSweep,
+                title = "REMOVE DUPLICATES",
+                subtitle = "Find and remove duplicate downloaded files",
+                onClick = onRemoveDuplicates
             )
         }
 

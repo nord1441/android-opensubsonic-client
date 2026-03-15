@@ -376,6 +376,14 @@ fun SubTuneApp(
                             DownloadService.start(navController.context, server)
                         }
                     },
+                    onCancelDownload = {
+                        DownloadService.stop(navController.context)
+                    },
+                    onRemoveDuplicates = {
+                        scope.launch {
+                            downloadManager.removeDuplicateDownloads()
+                        }
+                    },
                     onScanDownloads = {
                         scope.launch {
                             downloadManager.scanAndRemapDownloads()

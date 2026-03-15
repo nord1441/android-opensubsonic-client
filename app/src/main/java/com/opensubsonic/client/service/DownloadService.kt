@@ -35,6 +35,7 @@ class DownloadService : Service() {
         private const val EXTRA_SERVER_URL = "server_url"
         private const val EXTRA_SERVER_USERNAME = "server_username"
         private const val EXTRA_SERVER_PASSWORD = "server_password"
+        private const val ACTION_CANCEL = "subtune_download_cancel"
 
         fun start(context: Context, server: ServerConfig) {
             val intent = Intent(context, DownloadService::class.java).apply {
@@ -43,6 +44,13 @@ class DownloadService : Service() {
                 putExtra(EXTRA_SERVER_PASSWORD, server.password)
             }
             context.startForegroundService(intent)
+        }
+
+        fun stop(context: Context) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = ACTION_CANCEL
+            }
+            context.startService(intent)
         }
     }
 
@@ -54,6 +62,11 @@ class DownloadService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_CANCEL) {
+            downloadManager.cancelBulkDownload()
+            return START_NOT_STICKY
+        }
+
         if (isRunning) return START_NOT_STICKY
 
         val url = intent?.getStringExtra(EXTRA_SERVER_URL) ?: run { stopSelf(); return START_NOT_STICKY }
