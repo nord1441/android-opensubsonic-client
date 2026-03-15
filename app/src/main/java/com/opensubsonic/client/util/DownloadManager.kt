@@ -55,6 +55,8 @@ class DownloadManager @Inject constructor(
 
     // In-memory cache of songId -> filePath to avoid repeated listFiles() on SD card
     private val fileCache = mutableMapOf<String, String>()
+    // Secondary cache: content key (artist - title.suffix) -> (filePath, originalSongId)
+    private val contentKeyCache = mutableMapOf<String, Pair<String, String>>()
 
     companion object {
         private const val SUBTUNE_DIR = "SubTune"
@@ -75,8 +77,8 @@ class DownloadManager @Inject constructor(
     suspend fun downloadSong(song: Song, server: ServerConfig) {
         withContext(Dispatchers.IO) {
             try {
-                // Skip if file already exists on disk for this song ID
-                if (isSongFileExists(song.id)) {
+                // Skip if file already exists on disk (by ID or content match)
+                if (isSongFileExistsByContent(song)) {
                     _activeDownloads.value = _activeDownloads.value + (song.id to DownloadProgress(song.id, 1f, isComplete = true))
                     return@withContext
                 }
@@ -173,8 +175,8 @@ class DownloadManager @Inject constructor(
                                 currentAlbumName = album.name
                             )
 
-                            // Skip if file already exists on disk for this song ID
-                            if (isSongFileExists(song.id)) {
+                            // Skip if file already exists on disk (by ID or content match)
+                            if (isSongFileExistsByContent(song)) {
                                 completed++
                                 continue
                             }
@@ -209,11 +211,28 @@ class DownloadManager @Inject constructor(
         }
     }
 
-    private fun isSongFileExists(songId: String): Boolean {
-        // Check in-memory cache first (populated by buildFileCache/scanAndRemapDownloads)
-        if (fileCache.containsKey(songId)) return true
-        // Fallback: check DB download status
+    /**
+     * Check if a song file exists, falling back to content-based matching
+     * when server IDs have changed (e.g. after server restart).
+     * If found by content key under a different ID, remaps the cache entry.
+     */
+    private fun isSongFileExistsByContent(song: Song): Boolean {
+        if (fileCache.containsKey(song.id)) return true
+        // Try content-based match: "Artist - Title.suffix"
+        val contentKey = buildContentKey(song)
+        val match = contentKeyCache[contentKey]
+        if (match != null) {
+            // File exists under a different server ID — remap to new ID
+            fileCache[song.id] = match.first
+            return true
+        }
         return false
+    }
+
+    private fun buildContentKey(song: Song): String {
+        val artist = (song.artist ?: "Unknown").replace(Regex("[/\\\\:*?\"<>|]"), "_")
+        val title = song.title.replace(Regex("[/\\\\:*?\"<>|]"), "_")
+        return "${artist} - ${title}".lowercase()
     }
 
     /**
@@ -222,6 +241,7 @@ class DownloadManager @Inject constructor(
      */
     private fun buildFileCache() {
         fileCache.clear()
+        contentKeyCache.clear()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             scanMediaStoreToCache()
         } else {
@@ -256,7 +276,15 @@ class DownloadManager @Inject constructor(
                     val uri = ContentUris.withAppendedId(
                         MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, mediaId
                     )
-                    fileCache[songId] = uri.toString()
+                    val path = uri.toString()
+                    fileCache[songId] = path
+                    // Build content key from the part after "__"
+                    val contentPart = displayName.substringAfter("__", "")
+                    if (contentPart.isNotEmpty()) {
+                        // Remove extension, lowercase for matching
+                        val key = contentPart.substringBeforeLast(".").lowercase()
+                        contentKeyCache[key] = Pair(path, songId)
+                    }
                 }
             }
         }
@@ -268,6 +296,12 @@ class DownloadManager @Inject constructor(
             val songId = file.name.substringBefore("__", "")
             if (songId.isNotEmpty()) {
                 fileCache[songId] = file.absolutePath
+                // Build content key from the part after "__"
+                val contentPart = file.name.substringAfter("__", "")
+                if (contentPart.isNotEmpty()) {
+                    val key = contentPart.substringBeforeLast(".").lowercase()
+                    contentKeyCache[key] = Pair(file.absolutePath, songId)
+                }
             }
         }
     }
@@ -281,6 +315,19 @@ class DownloadManager @Inject constructor(
         withContext(Dispatchers.IO) {
             // Build cache once, reuse for both DB update and isSongFileExists
             buildFileCache()
+
+            // Remap: for songs in DB whose IDs have changed on the server,
+            // match by content key and update the fileCache with new IDs
+            val allSongs = musicRepository.getAllSongsOnce()
+            for (song in allSongs) {
+                if (fileCache.containsKey(song.id)) continue
+                val contentKey = buildContentKey(song)
+                val match = contentKeyCache[contentKey]
+                if (match != null) {
+                    fileCache[song.id] = match.first
+                }
+            }
+
             // Single batch DB update using cached data
             if (fileCache.isNotEmpty()) {
                 musicRepository.markSongsAsDownloadedBatch(fileCache.toMap())
@@ -358,7 +405,7 @@ class DownloadManager @Inject constructor(
                             _bulkDownloadState.value = _bulkDownloadState.value.copy(
                                 currentTrackName = song.title
                             )
-                            if (!isSongFileExists(song.id)) {
+                            if (!isSongFileExistsByContent(song)) {
                                 downloadSong(song, server)
                                 _activeDownloads.value = _activeDownloads.value - song.id
                             }

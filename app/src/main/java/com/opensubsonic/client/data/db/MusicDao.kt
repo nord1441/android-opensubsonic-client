@@ -98,6 +98,9 @@ abstract class MusicDao {
         }
     }
 
+    @Query("SELECT * FROM songs")
+    abstract suspend fun getAllSongsOnce(): List<Song>
+
     @Query("DELETE FROM songs")
     abstract suspend fun deleteAllSongs()
 
