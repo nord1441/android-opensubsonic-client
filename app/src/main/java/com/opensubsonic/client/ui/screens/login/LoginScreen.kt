@@ -81,7 +81,7 @@ class LoginViewModel @Inject constructor(
                     )
                     _uiState.value = _uiState.value.copy(isLoading = false, isLoggedIn = true)
                 } else {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Connection failed")
+                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Server returned error")
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(isLoading = false, error = e.message ?: "Error")

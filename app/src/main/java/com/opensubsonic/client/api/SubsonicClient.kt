@@ -9,12 +9,8 @@ class SubsonicClient @Inject constructor(
     private val api: SubsonicApi
 ) {
     suspend fun ping(): Boolean {
-        return try {
-            val response = api.ping()
-            response.subsonicResponse?.status == "ok"
-        } catch (e: Exception) {
-            false
-        }
+        val response = api.ping()
+        return response.subsonicResponse?.status == "ok"
     }
 
     suspend fun getAlbumList(
